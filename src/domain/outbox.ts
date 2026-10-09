@@ -1,21 +1,21 @@
 import type { PendingCheckIn } from './check-in';
 export type { PendingCheckIn } from './check-in';
 
-interface OutboxStorage {
+interface OutboxStorage<Result> {
   read: () => PendingCheckIn[];
-  write: (remaining: PendingCheckIn[]) => void;
+  acknowledge: (id: string, result: Result) => void;
 }
 
-// Remove only confirmed IDs from the latest queue: new drafts can arrive
-// while a request is in flight. Failed acknowledgements safely retry the ID.
-export async function flushOutbox(
-  storage: OutboxStorage,
-  send: (entry: PendingCheckIn) => Promise<void>,
+// Acknowledge one ID against current storage, never replace a stale batch:
+// another tab or a new draft can add entries while a request is in flight.
+export async function flushOutbox<Result>(
+  storage: OutboxStorage<Result>,
+  send: (entry: PendingCheckIn) => Promise<Result>,
 ) {
   const batch = storage.read();
   for (const entry of batch) {
     if (!storage.read().some((pending) => pending.id === entry.id)) continue;
-    await send(entry);
-    storage.write(storage.read().filter((pending) => pending.id !== entry.id));
+    const result = await send(entry);
+    storage.acknowledge(entry.id, result);
   }
 }

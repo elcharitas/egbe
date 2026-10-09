@@ -18,6 +18,9 @@ function memoryQueue(initial: PendingCheckIn[]) {
   let queue = initial;
   return {
     read: () => queue,
+    acknowledge: (id: string) => {
+      queue = queue.filter((entry) => entry.id !== id);
+    },
     write: (next: PendingCheckIn[]) => {
       queue = next;
     },
@@ -67,7 +70,7 @@ describe('durable check-in outbox', () => {
       flushOutbox(
         {
           read: storage.read,
-          write: () => {
+          acknowledge: () => {
             throw new Error('storage full');
           },
         },

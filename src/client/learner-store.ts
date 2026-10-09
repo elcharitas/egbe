@@ -127,6 +127,25 @@ export function retryDeviceSave() {
   }
 }
 
+export function removeWaitingCheckIn(id: string) {
+  let waiting = snapshot.learner.outbox;
+  const saved = updateLearner((learner) => {
+    waiting = learner.outbox;
+    return {
+      ...learner,
+      outbox: waiting.filter((entry) => entry.id !== id),
+    };
+  });
+  if (!saved) {
+    // A failed cancellation or acknowledgement must keep the retry ID visible.
+    publish({
+      ...snapshot,
+      learner: { ...snapshot.learner, outbox: waiting },
+    });
+  }
+  return saved;
+}
+
 export function downloadRecovery() {
   const recovery = {
     currentLearning: snapshot.learner,

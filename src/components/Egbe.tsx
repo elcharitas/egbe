@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useCircle } from '../client/circle-store';
+import { useConnectivity } from '../client/use-connectivity';
 import {
   downloadRecovery,
   retryDeviceSave,
@@ -6,6 +8,7 @@ import {
 } from '../client/learner-store';
 import { Learning } from './Learning';
 import { Resources } from './Resources';
+import { Circle } from './Circle';
 
 type View = 'learning' | 'resources' | 'circle';
 const views: { id: View; label: string; symbol: string }[] = [
@@ -17,10 +20,17 @@ const views: { id: View; label: string; symbol: string }[] = [
 export function Egbe() {
   const [view, setView] = useState<View>('learning');
   const { learner, ready, status } = useLearner();
+  const { online, offlineReady, offlineError } = useConnectivity();
+  const circle = useCircle(
+    ready && (view === 'circle' || learner.outbox.length > 0),
+    online,
+    learner.participant,
+  );
   useEffect(() => {
     function readView() {
       const hash = window.location.hash.slice(1);
-      setView(views.find((item) => item.id === hash)?.id ?? 'learning');
+      const destination = views.find((item) => item.id === hash);
+      if (destination) setView(destination.id);
     }
     readView();
     window.addEventListener('hashchange', readView);
@@ -38,7 +48,9 @@ export function Egbe() {
         </a>
         <span className="brand-caption">Learn a little. Go together.</span>
         <span className="connection-pill">
-          Light by design · no auto-downloads
+          {online ? 'Connection available' : 'Offline'}
+          {' · '}
+          {offlineReady ? 'Ready offline' : 'Offline access not ready'}
         </span>
       </header>
       <div className="shell-body">
@@ -79,7 +91,32 @@ export function Egbe() {
               : status === 'saved'
                 ? '✓ Learning changes saved on this device'
                 : 'Your changes are not safely saved'}
+            {learner.outbox.length > 0 && (
+              <span>
+                {' '}
+                · {learner.outbox.length} check-in(s) waiting for confirmation
+              </span>
+            )}
           </div>
+          <details className="offline-details">
+            <summary>What can I do offline?</summary>
+            <p className="small">
+              {offlineReady
+                ? 'This learning space is ready for offline reloads.'
+                : 'First load this app online and wait for “Ready offline”.'}{' '}
+              Then keep notes, change your goal, explore the guidance, and save
+              links without internet. After joining online, check-ins can wait
+              here and sync when you return or reconnect.
+            </p>
+            <p className="small">
+              External lessons still need internet and are never downloaded
+              automatically. Only your on-device view of the circle feed is
+              temporary. Shared posts stay on the server until you remove them.
+              Browser eviction or clearing site data removes offline access and
+              local progress. Use one learning tab at a time.
+            </p>
+            {offlineError && <p className="small error">{offlineError}</p>}
+          </details>
           {status !== 'saved' && (
             <div className="notice error" role="alert">
               <strong>Keep this page open.</strong>
@@ -107,12 +144,7 @@ export function Egbe() {
           {ready && view === 'learning' && <Learning learner={learner} />}
           {ready && view === 'resources' && <Resources learner={learner} />}
           {ready && view === 'circle' && (
-            <section className="card">
-              <p className="eyebrow">LEARNING, TOGETHER</p>
-              <h1>Your circle is coming next.</h1>
-              <p>For now, keep a question in your practice notes.</p>
-              <a href="#learning">Return to my learning →</a>
-            </section>
+            <Circle learner={learner} online={online} circle={circle} />
           )}
           <footer>
             Private learning stays in this browser, not in an account. Clearing

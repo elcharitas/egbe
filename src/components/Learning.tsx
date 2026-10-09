@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { updateLearner } from '../client/learner-store';
 import { directions, resources, type Direction } from '../domain/catalog';
 import { parseGoal, type Learner } from '../domain/learner';
@@ -7,6 +7,9 @@ import { ResourceCard } from './ResourceCard';
 export function Learning({ learner }: { learner: Learner }) {
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalError, setGoalError] = useState('');
+  const [stepFeedback, setStepFeedback] = useState('');
+  const goalInput = useRef<HTMLInputElement>(null);
+  const practiceHeading = useRef<HTMLHeadingElement>(null);
   const direction = learner.direction;
   const path = directions[direction];
   const goal = learner.goals[direction];
@@ -34,6 +37,7 @@ export function Learning({ learner }: { learner: Learner }) {
     const result = parseGoal(direction, learner);
     if (!result.success) {
       setGoalError('Give your goal a few words (up to 120 characters).');
+      goalInput.current?.focus();
       return;
     }
     updateLearner((state) => ({
@@ -42,6 +46,34 @@ export function Learning({ learner }: { learner: Learner }) {
     }));
     setGoalError('');
     setEditingGoal(false);
+    requestAnimationFrame(() => practiceHeading.current?.focus());
+  }
+
+  function markStep() {
+    if (!step) return;
+    const completing = !learner.tasks[step.id]?.completed;
+    const saved = updateLearner((state) => ({
+      ...state,
+      tasks: {
+        ...state.tasks,
+        [step.id]: {
+          notes: state.tasks[step.id]?.notes ?? '',
+          completed: completing,
+        },
+      },
+      activeSteps: {
+        ...state.activeSteps,
+        [direction]: completing ? null : step.id,
+      },
+    }));
+    setStepFeedback(
+      saved
+        ? completing
+          ? 'Step explored and saved. Continue when you are ready.'
+          : 'Step reopened. Your notes are still here.'
+        : 'Progress changed in this page. Check the device-save notice.',
+    );
+    requestAnimationFrame(() => practiceHeading.current?.focus());
   }
 
   return (
@@ -86,6 +118,7 @@ export function Learning({ learner }: { learner: Learner }) {
           <label htmlFor="goal-title">My goal</label>
           <input
             id="goal-title"
+            ref={goalInput}
             maxLength={120}
             value={draft.title}
             onChange={(event) => {
@@ -207,6 +240,11 @@ export function Learning({ learner }: { learner: Learner }) {
               </p>
             </section>
             <section className="card practice" aria-label="Practice step">
+              {stepFeedback && (
+                <p className="small" role="status">
+                  {stepFeedback}
+                </p>
+              )}
               {step ? (
                 <>
                   <p className="eyebrow">
@@ -214,7 +252,9 @@ export function Learning({ learner }: { learner: Learner }) {
                       ? 'REVISIT A STEP'
                       : 'YOUR NEXT USEFUL ACTION'}
                   </p>
-                  <h2>{step.title}</h2>
+                  <h2 ref={practiceHeading} tabIndex={-1}>
+                    {step.title}
+                  </h2>
                   <p>{step.guidance}</p>
                   <div className="practice-prompt">
                     <strong>Try it in your own way</strong>
@@ -249,29 +289,7 @@ export function Learning({ learner }: { learner: Learner }) {
                     No grades here. Take a break whenever you need one.
                   </p>
                   <div className="actions">
-                    <button
-                      onClick={() => {
-                        updateLearner((state) => ({
-                          ...state,
-                          tasks: {
-                            ...state.tasks,
-                            [step.id]: {
-                              notes: progress?.notes ?? '',
-                              completed: !progress?.completed,
-                            },
-                          },
-                        }));
-                        if (!progress?.completed) {
-                          updateLearner((state) => ({
-                            ...state,
-                            activeSteps: {
-                              ...state.activeSteps,
-                              [direction]: null,
-                            },
-                          }));
-                        }
-                      }}
-                    >
+                    <button onClick={markStep}>
                       {progress?.completed
                         ? 'Mark as still exploring'
                         : 'I explored this step'}
@@ -294,7 +312,9 @@ export function Learning({ learner }: { learner: Learner }) {
                   <span className="completion-mark" aria-hidden="true">
                     ✓
                   </span>
-                  <h2>Look at what you’ve explored.</h2>
+                  <h2 ref={practiceHeading} tabIndex={-1}>
+                    Look at what you’ve explored.
+                  </h2>
                   <p>
                     You have worked through this path. Revisit any step, adjust
                     your goal, or bring a question to your circle.
