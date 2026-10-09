@@ -116,52 +116,60 @@ export function Learning({ learner }: { learner: Learner }) {
               ? 'Make your goal fit your life.'
               : 'What would progress look like?'}
           </h2>
-          <label htmlFor="goal-title">My goal</label>
-          <input
-            id="goal-title"
-            ref={goalInput}
-            maxLength={120}
-            value={draft.title}
-            onChange={(event) => {
-              const title = event.target.value;
-              updateLearner((state) => ({
-                ...state,
-                goalDrafts: {
-                  ...state.goalDrafts,
-                  [direction]: { ...draft, title },
-                },
-              }));
-            }}
-            aria-describedby={goalError ? 'goal-error' : 'goal-help'}
-            aria-invalid={Boolean(goalError)}
-          />
-          <p id="goal-help" className="small muted">
-            Use your own words. This is a direction, not a deadline.
-          </p>
-          <label htmlFor="goal-minutes">Time I can make for a session</label>
-          <select
-            id="goal-minutes"
-            value={draft.minutes}
-            onChange={(event) => {
-              const minutes = Number(event.target.value);
-              updateLearner((state) => ({
-                ...state,
-                goalDrafts: {
-                  ...state.goalDrafts,
-                  [direction]: { ...draft, minutes },
-                },
-              }));
-            }}
-          >
-            <option value={5}>About 5 minutes</option>
-            <option value={10}>About 10 minutes</option>
-            <option value={20}>About 20 minutes</option>
-            <option value={30}>About 30 minutes</option>
-          </select>
-          <p className="small muted">
-            Split any step across sessions. Adjusting your goal keeps your notes
-            and completed steps.
-          </p>
+          <div className="goal-fields">
+            <div>
+              <label htmlFor="goal-title">My goal</label>
+              <input
+                id="goal-title"
+                ref={goalInput}
+                maxLength={120}
+                value={draft.title}
+                onChange={(event) => {
+                  const title = event.target.value;
+                  updateLearner((state) => ({
+                    ...state,
+                    goalDrafts: {
+                      ...state.goalDrafts,
+                      [direction]: { ...draft, title },
+                    },
+                  }));
+                }}
+                aria-describedby={goalError ? 'goal-error' : 'goal-help'}
+                aria-invalid={Boolean(goalError)}
+              />
+              <p id="goal-help" className="small muted">
+                Use your own words. This is a direction, not a deadline.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="goal-minutes">
+                Time I can make for a session
+              </label>
+              <select
+                id="goal-minutes"
+                value={draft.minutes}
+                onChange={(event) => {
+                  const minutes = Number(event.target.value);
+                  updateLearner((state) => ({
+                    ...state,
+                    goalDrafts: {
+                      ...state.goalDrafts,
+                      [direction]: { ...draft, minutes },
+                    },
+                  }));
+                }}
+              >
+                <option value={5}>About 5 minutes</option>
+                <option value={10}>About 10 minutes</option>
+                <option value={20}>About 20 minutes</option>
+                <option value={30}>About 30 minutes</option>
+              </select>
+              <p className="small muted">
+                Split any step across sessions. Adjusting your goal keeps your
+                notes and completed steps.
+              </p>
+            </div>
+          </div>
           {goalError && (
             <p id="goal-error" role="alert">
               {goalError}
@@ -251,60 +259,65 @@ export function Learning({ learner }: { learner: Learner }) {
                 </p>
               )}
               {step ? (
-                <>
-                  <p className="eyebrow">
-                    {progress?.completed
-                      ? 'REVISIT A STEP'
-                      : 'YOUR NEXT USEFUL ACTION'}
-                  </p>
-                  <h2 ref={practiceHeading} tabIndex={-1}>
-                    {step.title}
-                  </h2>
-                  <p>{step.guidance}</p>
-                  <div className="practice-prompt">
-                    <strong>Try it in your own way</strong>
-                    <p>{step.prompt}</p>
-                  </div>
-                  <details>
-                    <summary>A little help, if you need it</summary>
-                    <p>{step.hint}</p>
-                  </details>
-                  <label htmlFor="practice-notes">My practice notes</label>
-                  <textarea
-                    id="practice-notes"
-                    rows={5}
-                    maxLength={4000}
-                    value={progress?.notes ?? ''}
-                    placeholder={
-                      'Type here, or practise on paper ' +
-                      'and note what you tried.'
-                    }
-                    onChange={(event) => {
-                      const notes = event.target.value;
-                      updateLearner((state) => ({
-                        ...state,
-                        tasks: {
-                          ...state.tasks,
-                          [step.id]: {
-                            notes,
-                            completed: progress?.completed ?? false,
-                          },
-                        },
-                      }));
-                    }}
-                  />
-                  <p className="small muted">
-                    No grades here. Take a break whenever you need one.
-                  </p>
-                  <div className="actions">
-                    <button onClick={markStep}>
+                <div className="practice-layout">
+                  <div className="practice-work">
+                    <p className="eyebrow">
                       {progress?.completed
-                        ? 'Mark as still exploring'
-                        : 'I explored this step'}
-                    </button>
+                        ? 'REVISIT A STEP'
+                        : 'YOUR NEXT USEFUL ACTION'}
+                    </p>
+                    <h2 ref={practiceHeading} tabIndex={-1}>
+                      {step.title}
+                    </h2>
+                    <p>{step.guidance}</p>
+                    <div className="practice-prompt">
+                      <strong>Try it in your own way</strong>
+                      <p>{step.prompt}</p>
+                    </div>
+                    <details>
+                      <summary>A little help, if you need it</summary>
+                      <p>{step.hint}</p>
+                    </details>
+                    <label htmlFor="practice-notes">My practice notes</label>
+                    <textarea
+                      id="practice-notes"
+                      rows={5}
+                      maxLength={4000}
+                      value={progress?.notes ?? ''}
+                      placeholder={
+                        'Type here, or practise on paper ' +
+                        'and note what you tried.'
+                      }
+                      onChange={(event) => {
+                        const notes = event.target.value;
+                        updateLearner((state) => ({
+                          ...state,
+                          tasks: {
+                            ...state.tasks,
+                            [step.id]: {
+                              notes,
+                              completed: progress?.completed ?? false,
+                            },
+                          },
+                        }));
+                      }}
+                    />
+                    <p className="small muted">
+                      No grades here. Take a break whenever you need one.
+                    </p>
+                    <div className="actions">
+                      <button onClick={markStep}>
+                        {progress?.completed
+                          ? 'Mark as still exploring'
+                          : 'I explored this step'}
+                      </button>
+                    </div>
                   </div>
                   {resource && (
-                    <div className="step-resource">
+                    <aside
+                      className="step-resource"
+                      aria-label="Resource for this step"
+                    >
                       <p className="small muted">
                         Go deeper when you have internet
                       </p>
@@ -312,9 +325,9 @@ export function Learning({ learner }: { learner: Learner }) {
                         resource={resource}
                         saved={learner.savedResources.includes(resource.id)}
                       />
-                    </div>
+                    </aside>
                   )}
-                </>
+                </div>
               ) : (
                 <div className="completion">
                   <span className="completion-mark" aria-hidden="true">
