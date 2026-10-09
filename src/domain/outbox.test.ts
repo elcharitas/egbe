@@ -28,7 +28,7 @@ function memoryQueue(initial: PendingCheckIn[]) {
 }
 
 describe('durable check-in outbox', () => {
-  it('preserves a new check-in added while an older one is sending', async () => {
+  it('keeps new check-ins added during an in-flight send', async () => {
     const storage = memoryQueue([first]);
     await flushOutbox(storage, async () => {
       storage.write([...storage.read(), second]);
@@ -36,7 +36,7 @@ describe('durable check-in outbox', () => {
     expect(storage.read()).toEqual([second]);
   });
 
-  it('keeps the failed and unattempted entries, not confirmed ones', async () => {
+  it('keeps failed and unattempted entries, not confirmed ones', async () => {
     const storage = memoryQueue([first, second]);
     await expect(
       flushOutbox(storage, async (entry) => {
@@ -46,7 +46,7 @@ describe('durable check-in outbox', () => {
     expect(storage.read()).toEqual([second]);
   });
 
-  it('retries the same ID after the server committed but its reply was lost', async () => {
+  it('retries the same ID after a committed request loses its reply', async () => {
     const storage = memoryQueue([first]);
     const committed = new Set<string>();
     const send = async (entry: PendingCheckIn) => {
@@ -64,7 +64,7 @@ describe('durable check-in outbox', () => {
     expect(storage.read()).toEqual([]);
   });
 
-  it('retains an acknowledged entry if saving the acknowledgement fails', async () => {
+  it('keeps a retry ID if saving its acknowledgement fails', async () => {
     const storage = memoryQueue([first]);
     await expect(
       flushOutbox(

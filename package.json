@@ -7,9 +7,9 @@
     "npm": ">=11"
   },
   "scripts": {
-    "dev": "vite dev --host 127.0.0.1 --port 3000",
+    "dev": "vite dev --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 3000",
+    "preview": "vite preview --host 127.0.0.1 --port 3000 --strictPort",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

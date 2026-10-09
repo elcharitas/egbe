@@ -17,6 +17,21 @@ const views: { id: View; label: string; symbol: string }[] = [
   { id: 'circle', label: 'My circle', symbol: '◎' },
 ];
 
+const deviceSaveMessages = {
+  damaged:
+    'Egbe could not read your stored data. It has not been overwritten. ' +
+    'Download it for recovery; clear Egbe site data only to start fresh.',
+  unreadable:
+    'Egbe cannot access your saved progress yet. Nothing was overwritten. ' +
+    'Allow site storage, then retry opening it.',
+  conflict:
+    'Saved progress changed in another tab. It has not been overwritten. ' +
+    'Download your in-page work before reloading the saved version.',
+  unsaved:
+    'Device storage is unavailable or full. Your latest work is only here. ' +
+    'Free space or allow site storage, then retry.',
+};
+
 export function Egbe() {
   const [view, setView] = useState<View>('learning');
   const { learner, ready, status } = useLearner();
@@ -103,7 +118,7 @@ export function Egbe() {
             <p className="small">
               {offlineReady
                 ? 'This learning space is ready for offline reloads.'
-                : 'First load this app online and wait for “Ready offline”.'}{' '}
+                : 'Load online and wait for “Ready offline”.'}{' '}
               Then keep notes, change your goal, explore the guidance, and save
               links without internet. After joining online, check-ins can wait
               here and sync when you return or reconnect.
@@ -120,15 +135,7 @@ export function Egbe() {
           {status !== 'saved' && (
             <div className="notice error" role="alert">
               <strong>Keep this page open.</strong>
-              <p>
-                {status === 'damaged'
-                  ? 'Egbe could not read your stored data. It has not been overwritten. Download it for recovery; clear Egbe site data only if you want to start fresh.'
-                  : status === 'unreadable'
-                    ? 'Egbe cannot access your saved progress yet. Nothing has been overwritten. Allow site storage, then retry opening it.'
-                    : status === 'conflict'
-                      ? 'Saved progress changed in another tab. It has not been overwritten. Download your in-page work before reloading to open the saved version.'
-                      : 'Device storage is unavailable or full. Your latest work is only in this page. Free space or allow site storage, then retry.'}
-              </p>
+              <p>{deviceSaveMessages[status]}</p>
               <button className="secondary" onClick={downloadRecovery}>
                 Download recovery data
               </button>

@@ -94,7 +94,8 @@ export function Circle({ learner, online, circle }: CircleProps) {
                 placeholder="I tried… Next I’ll… I could use help with…"
               />
               <p id="check-in-help" className="small muted">
-                {learner.checkInDraft.length}/600 · Draft stays on this device.{' '}
+                {learner.checkInDraft.length}/600
+                {' · Draft stays on this device. '}
                 Offline check-ins wait here until you reconnect.
               </p>
               <button type="submit">

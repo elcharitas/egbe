@@ -146,7 +146,8 @@ export const shareCheckIn = createServerFn({ method: 'POST' })
     const owner = await currentOwner();
     if (data.participant !== participant(owner)) {
       throw new Error(
-        'Circle session changed. This queued check-in belongs to another session.',
+        'Circle session changed. This queued check-in belongs ' +
+          'to another session.',
       );
     }
 
@@ -183,7 +184,8 @@ export const shareCheckIn = createServerFn({ method: 'POST' })
     const row = rowSchema.parse(stored);
     if (row.owner === owner && row.removed_at !== null) {
       throw new Error(
-        'This check-in was removed. Cancel its waiting copy; it will not be reposted.',
+        'This check-in was removed. Cancel its waiting copy; ' +
+          'it will not be reposted.',
       );
     }
     if (
@@ -211,7 +213,8 @@ export const removeCheckIn = createServerFn({ method: 'POST' })
       .run();
     if (result.meta.changes !== 1) {
       const removed = await env.DB.prepare(
-        'SELECT id FROM check_ins WHERE id = ? AND owner = ? AND removed_at IS NOT NULL',
+        `SELECT id FROM check_ins
+         WHERE id = ? AND owner = ? AND removed_at IS NOT NULL`,
       )
         .bind(data.id, owner)
         .first();

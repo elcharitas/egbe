@@ -2,12 +2,15 @@
 
 Egbe is a low-data learning-circle proof of concept, not a production service.
 
-- Use npm >=11 and the committed package-lock.json. Use Node 24 LTS or 22.13+.
+- Use Node 24 LTS (`.node-version`), npm >=11, and package-lock.json.
 - `npm ci` installs dependencies.
 - `npm run cf-typegen` regenerates Workers binding types.
-- `npm run db:migrate` applies D1 migrations locally only.
-- `npm run dev` runs Vite with the Cloudflare Workers runtime on port 3000.
-- `npm run build` then `npm run preview` previews the production Worker.
+- `npm run db:migrate` applies D1 migrations locally only. Use `CI=true` for
+  non-interactive migration confirmation.
+- `npm run dev` runs Vite in the Workers runtime on port 5173.
+- `npm run build` then `npm run preview` previews the production Worker on 3000.
+  Separate origins keep the production service worker out of development.
+  Ports are strict; parallel verification may pass `-- --port <free-port>`.
 - Run `npm run format:check`, `npm run lint`, `npm run typecheck`,
   `npm test`, and `npm run build` before a completed milestone commit.
 
@@ -26,6 +29,10 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
   or external lesson content. Development is not an offline-ready build.
 - Goals and practice stay on this browser. The public demo circle uses an
   opaque HttpOnly cookie; do not add personal profiling or fake peer activity.
+- Use one learning tab at a time. Device save failures must retain in-page
+  work, and cancellations/acknowledgements must retain retry IDs until durable.
+- Shared posts persist publicly until removed. Removal scrubs text but retains
+  a minimal retry marker. Do not remove that protection or bypass the D1 cap.
 
 Keep domain rules and persistence in their existing sources of truth.
 Prefer coherent functions, explicit flow, and lines around 80 characters.
@@ -39,6 +46,8 @@ two-context circle interactions, keyboard use, and narrow layouts.
 
 Obtain independent product, code/security, and real-condition reviews at major
 milestones. Fix blockers and important friction, rerun checks, and re-review.
+Isolated reviewers may reuse installed dependencies read-only when disk is low;
+do not install another full copy or delete files outside their own worktree.
 Inspect full diffs and stage only related files for local milestone commits.
 Commit messages are one line, <=80 characters, with no body.
 

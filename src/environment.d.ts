@@ -1,4 +1,4 @@
-// Import Workers types as a module, not conflicting browser-global declarations.
+// Import Workers types as a module to avoid conflicting browser globals.
 type D1Database = import('@cloudflare/workers-types').D1Database;
 
 declare module 'cloudflare:workers' {

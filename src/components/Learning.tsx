@@ -86,7 +86,8 @@ export function Learning({ learner }: { learner: Learner }) {
       </h1>
       <p className="intro">
         {goal
-          ? 'A break does not erase your progress. One useful step is enough today.'
+          ? 'A break does not erase your progress. ' +
+            'One useful step is enough today.'
           : 'Choose something that matters to you. No account needed to begin.'}
       </p>
       <fieldset className="direction-picker">
@@ -208,7 +209,11 @@ export function Learning({ learner }: { learner: Learner }) {
                 {path.steps.map((item, index) => (
                   <li key={item.id}>
                     <button
-                      className={`step-button ${step?.id === item.id ? 'active' : ''}`}
+                      className={
+                        step?.id === item.id
+                          ? 'step-button active'
+                          : 'step-button'
+                      }
                       onClick={() =>
                         updateLearner((state) => ({
                           ...state,
@@ -270,7 +275,10 @@ export function Learning({ learner }: { learner: Learner }) {
                     rows={5}
                     maxLength={4000}
                     value={progress?.notes ?? ''}
-                    placeholder="Type here, or practise on paper and note what you tried."
+                    placeholder={
+                      'Type here, or practise on paper ' +
+                      'and note what you tried.'
+                    }
                     onChange={(event) => {
                       const notes = event.target.value;
                       updateLearner((state) => ({

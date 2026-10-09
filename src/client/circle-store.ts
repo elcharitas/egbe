@@ -42,6 +42,12 @@ function publish(change: Partial<CircleState>) {
 }
 
 function failureMessage(error: unknown) {
+  if (error instanceof TypeError) {
+    return (
+      'The circle connection failed. Your waiting check-ins are kept. ' +
+      'Try Refresh & sync when connected.'
+    );
+  }
   return error instanceof Error
     ? error.message
     : 'The circle could not be reached. Your waiting check-ins are kept.';
@@ -88,7 +94,7 @@ export async function syncCircle(join = false) {
       currentLearner().outbox.length > 0
     ) {
       throw new Error(
-        'Your circle cookie has changed. Waiting check-ins have not been shared. ' +
+        'Your circle cookie has changed. Waiting check-ins were not shared. ' +
           'Copy their text before cancelling them, then join again.',
       );
     }
@@ -188,7 +194,7 @@ export function reopenCircleSession() {
   if (currentLearner().outbox.length > 0) {
     publish({
       error:
-        'Copy and cancel your waiting check-ins before reopening a changed session.',
+        'Copy and cancel waiting check-ins before reopening a changed session.',
     });
     return;
   }
