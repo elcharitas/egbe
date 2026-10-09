@@ -3,11 +3,13 @@ import { flushOutbox, type PendingCheckIn } from './outbox';
 
 const first: PendingCheckIn = {
   id: 'first',
+  participant: '0123456789abcdef',
   direction: 'web',
   message: 'I tried a heading.',
 };
 const second: PendingCheckIn = {
   id: 'second',
+  participant: '0123456789abcdef',
   direction: 'numbers',
   message: 'I compared prices.',
 };

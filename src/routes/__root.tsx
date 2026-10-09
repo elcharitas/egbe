@@ -17,7 +17,10 @@ export const Route = createRootRoute({
         content: 'Small learning steps, useful resources, and peer check-ins.',
       },
     ],
-    links: [{ rel: 'stylesheet', href: stylesheet }],
+    links: [
+      { rel: 'stylesheet', href: stylesheet },
+      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+    ],
   }),
   component: Root,
   notFoundComponent: () => (

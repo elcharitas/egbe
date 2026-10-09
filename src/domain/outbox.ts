@@ -1,8 +1,5 @@
-export interface PendingCheckIn {
-  id: string;
-  direction: 'web' | 'numbers';
-  message: string;
-}
+import type { PendingCheckIn } from './check-in';
+export type { PendingCheckIn } from './check-in';
 
 interface OutboxStorage {
   read: () => PendingCheckIn[];
