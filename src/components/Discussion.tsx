@@ -117,6 +117,10 @@ export function Discussion({
               {learner.checkInDraft.length}/600 · Draft stays here until you
               share. Offline submissions wait for connection.
             </p>
+            <p className="small muted">
+              Shared check-ins are public and remain until removed. Your private
+              study notes are not included.
+            </p>
             <button disabled={!circle.circle?.joined || otherDraft}>
               {online ? 'Share check-in' : 'Save check-in to share later'}
             </button>
@@ -169,11 +173,30 @@ export function Discussion({
                       })}
                     </time>
                     {' · '}
-                    {post.materialId
-                      ? (circle.materials.find(
-                          (material) => material.id === post.materialId,
-                        )?.title ?? 'Material removed or unavailable')
-                      : 'Circle check-in'}
+                    {post.materialId &&
+                    circle.materials.some(
+                      (material) => material.id === post.materialId,
+                    ) ? (
+                      <a
+                        href="#study"
+                        onClick={() => {
+                          updateLearner((current) => ({
+                            ...current,
+                            selectedMaterialId: post.materialId,
+                          }));
+                        }}
+                      >
+                        {
+                          circle.materials.find(
+                            (material) => material.id === post.materialId,
+                          )?.title
+                        }
+                      </a>
+                    ) : post.materialId ? (
+                      'Material removed or unavailable'
+                    ) : (
+                      'Circle check-in'
+                    )}
                   </p>
                 </div>
               </div>

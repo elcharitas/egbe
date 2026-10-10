@@ -26,10 +26,9 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
 - Keep draft circle/material context and fixed retry IDs through failures.
   Publish materials before check-ins that reference them. Removed items retain
   scrubbed retry markers. Existing preset-path work must remain accessible.
-- Optional ChatGPT identity uses approved client configuration only:
-  `OPENAI_CLIENT_ID`, `OPENAI_REDIRECT_URI`, `OPENAI_TOKEN_AUTH_METHOD`, and
-  server-only `OPENAI_CLIENT_SECRET` when required. No provider secrets in files
-  or browser storage. No hosted plan/credit usage without its approved contract.
+- The app has no external identity or AI integration. Public demo membership
+  uses its browser cookie. Keep private study work out of shared discussions
+  unless the learner explicitly chooses to prepare a check-in.
 - Runtime types are module imports to avoid mixing Workers and DOM globals.
   Generate binding-only types. Vite configuration is JavaScript, validated by
   lint/build; application TypeScript is strict with library checking enabled.

@@ -6,48 +6,52 @@ import {
   retryDeviceSave,
   useLearner,
 } from '../client/learner-store';
-import { Learning } from './Learning';
-import { Resources } from './Resources';
-import { AIHelp } from './AIHelp';
 import { CircleDirectory } from './CircleDirectory';
 import { Discussion } from './Discussion';
+import { Learning } from './Learning';
 import { MaterialReader } from './MaterialReader';
 import { MaterialShelf } from './MaterialShelf';
+import { Resources } from './Resources';
 import { ContributionQueue } from './WorkspaceNotice';
 
 type View =
-  | 'materials'
-  | 'study'
-  | 'discussion'
-  | 'circles'
-  | 'account'
-  | 'learning'
-  | 'resources';
-const primaryViews: { id: View; label: string; symbol: string }[] = [
-  { id: 'materials', label: 'Materials', symbol: '▤' },
-  { id: 'study', label: 'My study', symbol: '◉' },
-  { id: 'discussion', label: 'Discussion', symbol: '◎' },
-];
-const otherViews: { id: View; label: string; symbol: string }[] = [
-  { id: 'circles', label: 'Study circles', symbol: '◌' },
-  { id: 'account', label: 'Help & account', symbol: '✳' },
-  { id: 'learning', label: 'Earlier practice', symbol: '↶' },
-  { id: 'resources', label: 'Starter links', symbol: '↗' },
+  'circle' | 'materials' | 'study' | 'circles' | 'learning' | 'resources';
+const tabs: { id: View; label: string }[] = [
+  { id: 'circle', label: 'Circle' },
+  { id: 'materials', label: 'Materials' },
+  { id: 'study', label: 'Study' },
 ];
 const deviceSaveMessages = {
   damaged:
-    'Egbe could not read your stored data. It has not been overwritten. ' +
-    'Download it for recovery; clear Egbe site data only to start fresh.',
+    'Stored data could not be read and has not been overwritten. ' +
+    'Download it for recovery before clearing any site data.',
   unreadable:
-    'Egbe cannot access your saved progress yet. Nothing was overwritten. ' +
-    'Allow site storage, then retry opening it.',
+    'Your saved progress cannot be opened yet. Nothing was overwritten. ' +
+    'Allow site storage, then retry.',
   conflict:
-    'Saved progress changed in another tab. It has not been overwritten. ' +
-    'Download your in-page work before reloading the saved version.',
+    'Saved progress changed in another tab. Nothing was overwritten. ' +
+    'Download your in-page work before reloading.',
   unsaved:
     'Device storage is unavailable or full. Your latest work is only here. ' +
     'Free space or allow site storage, then retry.',
 };
+
+function viewFromHash(hash: string): View | undefined {
+  if (hash === 'discussion') return 'circle';
+  if (hash === 'account') return 'study';
+  if (
+    [
+      'circle',
+      'materials',
+      'study',
+      'circles',
+      'learning',
+      'resources',
+    ].includes(hash)
+  ) {
+    return hash as View;
+  }
+}
 
 export function Egbe() {
   const [view, setView] = useState<View>('materials');
@@ -58,19 +62,16 @@ export function Egbe() {
   const currentCircle =
     circle.circle ??
     learner.circles.find((item) => item.id === learner.activeCircleId);
-  const inCircle = ['materials', 'study', 'discussion'].includes(view);
+  const inCircle = tabs.some((tab) => tab.id === view);
 
   useEffect(() => {
     function readView(event?: HashChangeEvent) {
       const hash = new URL(event?.newURL ?? window.location.href).hash.slice(1);
-      const destination = [...primaryViews, ...otherViews].find(
-        (item) => item.id === (hash === 'circle' ? 'discussion' : hash),
-      );
-      if (destination) {
-        setView(destination.id);
-        if (event) {
-          requestAnimationFrame(() => document.getElementById('main')?.focus());
-        }
+      const destination = viewFromHash(hash);
+      if (!destination) return;
+      setView(destination);
+      if (event) {
+        requestAnimationFrame(() => document.getElementById('main')?.focus());
       }
     }
     readView();
@@ -79,7 +80,7 @@ export function Egbe() {
   }, []);
 
   return (
-    <div className="app-shell student-workspace">
+    <div className="app-shell circle-workspace">
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -87,84 +88,126 @@ export function Egbe() {
         <a className="wordmark" href="#materials" aria-label="Egbe home">
           egbe<span aria-hidden="true">●</span>
         </a>
-        <span className="brand-caption">Your materials. Your circle.</span>
+        <div className="circle-picker">
+          <label className="sr-only" htmlFor="active-circle">
+            Current circle
+          </label>
+          <select
+            id="active-circle"
+            value={learner.activeCircleId}
+            disabled={!ready || circle.busy}
+            onChange={(event) => chooseCircle(event.target.value)}
+          >
+            {!learner.circles.some(
+              (item) => item.id === learner.activeCircleId,
+            ) && (
+              <option value={learner.activeCircleId}>
+                {currentCircle?.title ?? 'Study circle'}
+              </option>
+            )}
+            {learner.circles.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <a className="browse-circles" href="#circles">
+          Browse circles
+        </a>
         <span className="connection-pill">
-          {online ? 'Connection available' : 'Offline'}
-          {' · '}
+          {online ? 'Online' : 'Offline'} ·{' '}
           {offlineReady ? 'Ready offline' : 'Offline access not ready'}
         </span>
       </header>
-      <div className="shell-body">
-        <aside className="sidebar">
-          <div className="circle-picker">
-            <label htmlFor="active-circle">Current circle</label>
-            <select
-              id="active-circle"
-              value={learner.activeCircleId}
-              disabled={!ready || circle.busy}
-              onChange={(event) => chooseCircle(event.target.value)}
-            >
-              {!learner.circles.some(
-                (item) => item.id === learner.activeCircleId,
-              ) && (
-                <option value={learner.activeCircleId}>
-                  {currentCircle?.title ?? 'Study circle'}
-                </option>
+      <main id="main" tabIndex={-1}>
+        {status !== 'saved' && (
+          <div className="notice error" role="alert">
+            <strong>Keep this page open.</strong>
+            <p>{deviceSaveMessages[status]}</p>
+            <div className="actions">
+              <button className="secondary" onClick={downloadRecovery}>
+                Download recovery data
+              </button>
+              {(status === 'unsaved' || status === 'unreadable') && (
+                <button className="secondary" onClick={retryDeviceSave}>
+                  {status === 'unreadable'
+                    ? 'Retry opening saved progress'
+                    : 'Retry device save'}
+                </button>
               )}
-              {learner.circles.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <nav aria-label="Study workspace">
-            {primaryViews.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                aria-current={view === item.id ? 'page' : undefined}
-                className={view === item.id ? 'active' : ''}
-              >
-                <span aria-hidden="true">{item.symbol}</span>
-                {item.label}
-              </a>
-            ))}
-          </nav>
-          <p className="nav-caption">MORE FROM EGBE</p>
-          <nav className="secondary-navigation" aria-label="More options">
-            {otherViews.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                aria-current={view === item.id ? 'page' : undefined}
-                className={view === item.id ? 'active' : ''}
-              >
-                <span aria-hidden="true">{item.symbol}</span>
-                {item.label}
-              </a>
-            ))}
-          </nav>
-          <div className="sidebar-note">
-            <strong>Bring something. Leave with a next step.</strong>
-            <p className="small">Read a little, explain an idea, ask a peer.</p>
-          </div>
-          <p className="small muted">
-            Public demo · English only
-            <br />
-            Low-data study spaces
-          </p>
-        </aside>
-        <main id="main" tabIndex={-1}>
-          <div className="workspace-status">
-            <div className="save-status" role="status">
-              {!ready && status === 'saved'
-                ? 'Opening your saved workspace…'
-                : status === 'saved'
-                  ? '✓ Private work saved on this device'
-                  : 'Your work is not safely saved'}
-              {waiting > 0 && <span> · {waiting} contributions waiting</span>}
             </div>
+          </div>
+        )}
+        <div className="workspace-heading">
+          <div>
+            <p className="eyebrow">
+              {inCircle ? 'YOUR STUDY CIRCLE' : 'YOUR LEARNING SPACE'}
+            </p>
+            <h1>
+              {inCircle
+                ? (currentCircle?.title ?? 'Bring a material. Learn together.')
+                : view === 'circles'
+                  ? 'Find your circle.'
+                  : view === 'learning'
+                    ? 'Your earlier practice'
+                    : 'Starter resources'}
+            </h1>
+            {inCircle && (
+              <p className="muted">
+                {currentCircle?.description ??
+                  'Read a little, explain an idea, ask a peer.'}
+              </p>
+            )}
+          </div>
+          {inCircle && (
+            <div className="circle-membership">
+              {currentCircle && (
+                <span className="small muted">
+                  {currentCircle.memberCount} joined ·{' '}
+                  {currentCircle.materialCount} materials
+                  {!online && ' · Saved view'}
+                </span>
+              )}
+              {currentCircle?.joined ? (
+                <span className="tag">
+                  You joined{circle.alias && ` · ${circle.alias}`}
+                </span>
+              ) : (
+                <button
+                  disabled={!online || circle.busy || !ready}
+                  onClick={() => {
+                    void syncCircle(true);
+                  }}
+                >
+                  Join this circle
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="workspace-bar">
+          <nav className="circle-tabs" aria-label="Study workspace">
+            {tabs.map((tab) => (
+              <a
+                key={tab.id}
+                href={`#${tab.id}`}
+                className={view === tab.id ? 'active' : ''}
+                aria-current={view === tab.id ? 'page' : undefined}
+              >
+                {tab.label}
+              </a>
+            ))}
+          </nav>
+          <div className="workspace-status">
+            <span className="save-status" role="status">
+              {!ready && status === 'saved'
+                ? 'Opening saved work…'
+                : status === 'saved'
+                  ? 'Private work saved on this device'
+                  : 'Device save needs attention'}
+              {waiting > 0 && ` · ${waiting} waiting to share`}
+            </span>
             <button
               className="secondary"
               disabled={!online || circle.busy || !ready}
@@ -175,117 +218,53 @@ export function Egbe() {
               {circle.busy ? 'Connecting…' : 'Refresh & sync'}
             </button>
           </div>
-          {status !== 'saved' && (
-            <div className="notice error" role="alert">
-              <strong>Keep this page open.</strong>
-              <p>{deviceSaveMessages[status]}</p>
-              <div className="actions">
-                <button className="secondary" onClick={downloadRecovery}>
-                  Download recovery data
-                </button>
-                {(status === 'unsaved' || status === 'unreadable') && (
-                  <button className="secondary" onClick={retryDeviceSave}>
-                    {status === 'unreadable'
-                      ? 'Retry opening saved progress'
-                      : 'Retry device save'}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          {inCircle && (
-            <div className="workspace-heading">
-              <div>
-                <p className="eyebrow">PUBLIC STUDY CIRCLE</p>
-                <h1>
-                  {currentCircle?.title ??
-                    'Study together, from your own materials.'}
-                </h1>
-                <p className="muted">
-                  {currentCircle?.description ??
-                    'Students bring the material. The circle brings the support.'}
-                </p>
-                {currentCircle && (
-                  <p className="small muted">
-                    {currentCircle.memberCount} joined ·{' '}
-                    {circle.materials.length} materials loaded
-                    {!online && ' · Saved view, may be out of date'}
-                    {circle.alias && ` · Your demo name: ${circle.alias}`}
-                  </p>
-                )}
-              </div>
-              {!currentCircle?.joined && (
-                <button
-                  disabled={!online || circle.busy || !ready}
-                  onClick={() => {
-                    void syncCircle(true);
-                  }}
-                >
-                  Join this circle
-                </button>
-              )}
-              {currentCircle?.joined && (
-                <span className="tag member-tag">You joined</span>
-              )}
-            </div>
-          )}
-          {view === 'circles' && <h1>Study circles</h1>}
-          {view === 'account' && <h1>Help & account</h1>}
+        </div>
+        {ready && view === 'materials' && (
+          <MaterialShelf learner={learner} circle={circle} online={online} />
+        )}
+        {ready && view === 'study' && (
+          <MaterialReader learner={learner} circle={circle} online={online} />
+        )}
+        {ready && view === 'circle' && (
+          <Discussion learner={learner} circle={circle} online={online} />
+        )}
+        {ready && view === 'circles' && (
+          <CircleDirectory learner={learner} circle={circle} online={online} />
+        )}
+        {ready && view === 'learning' && <Learning learner={learner} />}
+        {ready && view === 'resources' && <Resources learner={learner} />}
+        {ready && <ContributionQueue learner={learner} busy={circle.busy} />}
+        <footer className="workspace-footer">
           <details className="workspace-disclosure">
-            <summary>Public demo & offline details</summary>
+            <summary>Privacy & offline use</summary>
             <p className="small">
-              Anyone can read or join these circles. Share only public links or
-              text you have permission to share, never personal information.
-              Shared contributions persist until removed. Removal scrubs text
-              but keeps a minimal retry record; there is no moderation or
-              automatic expiry.
-            </p>
-            <p className="small">
-              Circle ownership uses a browser cookie. Losing it loses the
-              ability to remove earlier contributions. ChatGPT sign-in does not
-              recover that ownership or sync private work.
+              Circles are public and unmoderated. Share only links or text you
+              have permission to share, never personal information. Shared
+              contributions remain public until removed. Removal scrubs text but
+              retains a minimal retry record; there is no automatic expiry.
+              Losing your browser cookie loses the ability to remove earlier
+              contributions. Private goals and notes stay on this device.
             </p>
             <p className="small">
               {offlineReady
-                ? 'The app shell is ready for offline reloads.'
+                ? 'The app is ready for offline reloads.'
                 : 'Load online and wait for “Ready offline”.'}{' '}
-              Explicitly save a material to read its text offline. A saved link
-              does not download its source. Private notes and waiting
-              contributions survive reloads. The discussion feed is only kept in
-              memory for this visit. Clearing site data or browser eviction
-              removes local work and offline copies. Use one learning tab at a
-              time.
+              Save text explicitly to read it offline. Saving a link does not
+              download its source. Notes and waiting contributions survive
+              reloads; the on-device discussion view does not. Clearing site
+              data or browser eviction removes local work. Use one learning tab
+              at a time.
             </p>
             {offlineError && <p className="small error">{offlineError}</p>}
           </details>
-          {ready && view === 'materials' && (
-            <MaterialShelf learner={learner} circle={circle} online={online} />
-          )}
-          {ready && view === 'study' && (
-            <MaterialReader learner={learner} circle={circle} online={online} />
-          )}
-          {ready && view === 'discussion' && (
-            <Discussion learner={learner} circle={circle} online={online} />
-          )}
-          {ready && view === 'circles' && (
-            <CircleDirectory
-              learner={learner}
-              circle={circle}
-              online={online}
-            />
-          )}
-          {ready && view === 'account' && (
-            <AIHelp learner={learner} circle={circle} online={online} />
-          )}
-          {ready && view === 'learning' && <Learning learner={learner} />}
-          {ready && view === 'resources' && <Resources learner={learner} />}
-          {ready && <ContributionQueue learner={learner} busy={circle.busy} />}
-          <footer>
-            Your goal and notes stay in this browser. Students choose the
-            material; sources and AI answers are not independently verified.
-          </footer>
-        </main>
-      </div>
+          <details className="earlier-tools">
+            <summary>Previous work & starter links</summary>
+            <a href="#learning">Earlier practice</a>
+            <a href="#resources">Starter links</a>
+          </details>
+          <span className="small muted">Public demo · English only</span>
+        </footer>
+      </main>
     </div>
   );
 }

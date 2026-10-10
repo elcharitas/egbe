@@ -265,7 +265,7 @@ export function MaterialReader({
           <label htmlFor="study-notes">My private notes</label>
           <textarea
             id="study-notes"
-            rows={7}
+            rows={4}
             maxLength={4000}
             value={work.notes}
             placeholder="What clicked? What do I want to ask?"
@@ -277,6 +277,23 @@ export function MaterialReader({
           <p className="small muted">
             Saved here, never posted automatically. No grades or streaks.
           </p>
+          <label htmlFor="study-question">Question for my circle</label>
+          <textarea
+            id="study-question"
+            rows={2}
+            maxLength={1000}
+            value={work.question}
+            placeholder="What would I like a peer to help me understand?"
+            onChange={(event) => {
+              const question = event.target.value;
+              changeWork((current) => ({ ...current, question }));
+            }}
+          />
+          <p className="small muted">
+            This stays private. Preparing opens an editable check-in, not a
+            public post. Review the wording before sharing (up to 600
+            characters).
+          </p>
           <div className="actions">
             <button onClick={completeStage}>
               {work.completed.includes(work.stage)
@@ -286,27 +303,39 @@ export function MaterialReader({
             <button
               className="secondary"
               onClick={() => {
+                if (learner.checkInDraft.trim()) {
+                  window.location.hash = 'circle';
+                  return;
+                }
+                const question = work.question.trim();
+                if (question.length > 600) {
+                  setFeedback('Shorten your question to 600 characters first.');
+                  document.getElementById('study-question')?.focus();
+                  return;
+                }
                 updateLearner((current) =>
                   current.checkInDraft.trim()
                     ? current
                     : {
                         ...current,
+                        checkInDraft: question,
                         checkInMaterialId: id,
                         checkInCircleId: current.activeCircleId,
                       },
                 );
-                window.location.hash = 'discussion';
+                window.location.hash = 'circle';
               }}
             >
-              Discuss this material
+              {learner.checkInDraft.trim()
+                ? 'Continue existing check-in'
+                : 'Prepare check-in'}
             </button>
           </div>
-          <a className="study-help-link" href="#account">
-            Get help with this material →
+          <a className="study-help-link" href="#circle">
+            Open circle discussion →
           </a>
           <p className="small muted">
-            This is a simple study routine, not an AI-generated lesson. Change
-            your goal or revisit any step without losing notes.
+            Change your goal or revisit any step without losing notes.
           </p>
         </section>
       </div>

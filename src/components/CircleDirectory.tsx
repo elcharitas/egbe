@@ -110,7 +110,7 @@ export function CircleDirectory({
         </div>
         <p className="small muted">
           All demo circles are public. Join a circle first to get a generated
-          demo name; no real name or ChatGPT account is required.
+          demo name; no account or real name is required.
         </p>
         <button disabled={!online || circle.busy}>
           {circle.busy
