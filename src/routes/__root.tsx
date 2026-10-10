@@ -14,7 +14,8 @@ export const Route = createRootRoute({
       { title: 'Egbe · Learn a little. Go together.' },
       {
         name: 'description',
-        content: 'Small learning steps, useful resources, and peer check-ins.',
+        content:
+          'Bring your materials to a study circle. Learn in small steps.',
       },
     ],
     links: [

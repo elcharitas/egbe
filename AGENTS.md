@@ -20,6 +20,16 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
 - `src/domain` holds resource guidance, validation, and durable outbox rules.
 - `src/client` owns browser persistence and offline/sync lifecycle.
 - `src/server` holds server functions and D1 access. DB is the only binding.
+- Students bring links, excerpts, or small UTF-8 text files to public circles.
+  Never fetch external lesson URLs on the server or imply links are downloaded.
+  Text copies are saved offline explicitly. Private work remains browser-local.
+- Keep draft circle/material context and fixed retry IDs through failures.
+  Publish materials before check-ins that reference them. Removed items retain
+  scrubbed retry markers. Existing preset-path work must remain accessible.
+- Optional ChatGPT identity uses approved client configuration only:
+  `OPENAI_CLIENT_ID`, `OPENAI_REDIRECT_URI`, `OPENAI_TOKEN_AUTH_METHOD`, and
+  server-only `OPENAI_CLIENT_SECRET` when required. No provider secrets in files
+  or browser storage. No hosted plan/credit usage without its approved contract.
 - Runtime types are module imports to avoid mixing Workers and DOM globals.
   Generate binding-only types. Vite configuration is JavaScript, validated by
   lint/build; application TypeScript is strict with library checking enabled.
@@ -48,6 +58,8 @@ Obtain independent product, code/security, and real-condition reviews at major
 milestones. Fix blockers and important friction, rerun checks, and re-review.
 Isolated reviewers may reuse installed dependencies read-only when disk is low;
 do not install another full copy or delete files outside their own worktree.
+Worker agents must remove task-created dependency symlinks before finishing,
+so those symlinks are not merged into the parent worktree.
 Inspect full diffs and stage only related files for local milestone commits.
 Commit messages are one line, <=80 characters, with no body.
 

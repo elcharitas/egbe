@@ -68,27 +68,33 @@ export function deviceSaveStatus() {
   return snapshot.status;
 }
 
-function persist(learner: Learner) {
+function persist(learner: Learner, failedSave = learner) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(learner));
     lastSaved = learner;
     publish({ learner, ready: true, status: 'saved' });
     return true;
   } catch {
-    publish({ learner, ready: true, status: 'unsaved' });
+    publish({ learner: failedSave, ready: true, status: 'unsaved' });
     return false;
   }
 }
 
-export function updateLearner(change: (learner: Learner) => Learner) {
+function changeLearner(
+  change: (learner: Learner) => Learner,
+  keepInPageOnFailure: boolean,
+) {
   if (!snapshot.ready) return false;
+  if (!keepInPageOnFailure && snapshot.status !== 'saved') return false;
   let learner = snapshot.learner;
   if (snapshot.status === 'saved') {
     try {
       learner = readStoredLearner();
       lastSaved = learner;
     } catch (error) {
-      const next = learnerSchema.parse(change(learner));
+      const next = keepInPageOnFailure
+        ? learnerSchema.parse(change(learner))
+        : learner;
       publish({
         learner: next,
         ready: true,
@@ -102,7 +108,16 @@ export function updateLearner(change: (learner: Learner) => Learner) {
     publish({ ...snapshot, learner: next });
     return false;
   }
-  return persist(next);
+  return persist(next, keepInPageOnFailure ? next : learner);
+}
+
+export function updateLearner(change: (learner: Learner) => Learner) {
+  return changeLearner(change, true);
+}
+
+// Public actions keep their draft or retry ID until the write is durable.
+export function commitLearner(change: (learner: Learner) => Learner) {
+  return changeLearner(change, false);
 }
 
 export function retryDeviceSave() {
@@ -128,22 +143,17 @@ export function retryDeviceSave() {
 }
 
 export function removeWaitingCheckIn(id: string) {
-  let waiting = snapshot.learner.outbox;
-  const saved = updateLearner((learner) => {
-    waiting = learner.outbox;
-    return {
-      ...learner,
-      outbox: waiting.filter((entry) => entry.id !== id),
-    };
-  });
-  if (!saved) {
-    // A failed cancellation or acknowledgement must keep the retry ID visible.
-    publish({
-      ...snapshot,
-      learner: { ...snapshot.learner, outbox: waiting },
-    });
-  }
-  return saved;
+  return commitLearner((learner) => ({
+    ...learner,
+    outbox: learner.outbox.filter((entry) => entry.id !== id),
+  }));
+}
+
+export function removeWaitingMaterial(id: string) {
+  return commitLearner((learner) => ({
+    ...learner,
+    materialOutbox: learner.materialOutbox.filter((entry) => entry.id !== id),
+  }));
 }
 
 export function downloadRecovery() {

@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { flushOutbox, type PendingCheckIn } from './outbox';
+import { communityCircleId } from './study-circle';
 
 const first: PendingCheckIn = {
   id: 'first',
   participant: '0123456789abcdef',
+  circleId: communityCircleId,
+  materialId: null,
   direction: 'web',
   message: 'I tried a heading.',
 };
 const second: PendingCheckIn = {
   id: 'second',
   participant: '0123456789abcdef',
+  circleId: communityCircleId,
+  materialId: null,
   direction: 'numbers',
   message: 'I compared prices.',
 };

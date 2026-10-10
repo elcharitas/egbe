@@ -805,3 +805,460 @@ footer {
     flex-direction: row;
   }
 }
+
+.student-workspace .sidebar {
+  gap: 16px;
+}
+
+.circle-picker {
+  min-width: 0;
+}
+
+.circle-picker select {
+  padding: 9px;
+  text-overflow: ellipsis;
+}
+
+.nav-caption {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  color: #627366;
+  margin: 12px 0 0 12px;
+}
+
+.secondary-navigation a {
+  font-size: 13px;
+}
+
+.workspace-status,
+.workspace-heading,
+.section-heading,
+.reading-toolbar,
+.material-labels,
+.pending-item,
+.text-import {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workspace-status {
+  margin-bottom: 20px;
+}
+
+.workspace-status .save-status {
+  margin: 0;
+}
+
+.workspace-heading {
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dde2d8;
+  margin-bottom: 12px;
+}
+
+.workspace-heading > div {
+  min-width: 0;
+}
+
+.workspace-heading h1 {
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+
+.workspace-heading p:last-child {
+  margin-bottom: 0;
+}
+
+.workspace-disclosure {
+  margin-bottom: 24px;
+  max-width: 85ch;
+}
+
+.workspace-disclosure summary {
+  font-size: 12px;
+}
+
+.section-heading {
+  align-items: flex-start;
+  margin: 20px 0;
+}
+
+.section-heading p:last-child {
+  margin-bottom: 0;
+}
+
+.tag {
+  display: inline-block;
+  border: 1px solid #d7e1cf;
+  background: #f0f4e9;
+  color: #526556;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.tag.waiting {
+  background: #fff7e8;
+  border-color: #d2b99c;
+  color: #765032;
+}
+
+.member-tag {
+  white-space: nowrap;
+}
+
+.material-grid,
+.circle-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.material-card,
+.circle-directory-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.material-card h3,
+.circle-directory-card h3 {
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+
+.material-card p,
+.circle-directory-card p {
+  overflow-wrap: anywhere;
+}
+
+.material-card .actions,
+.circle-directory-card > button {
+  margin-top: auto;
+}
+
+.material-labels {
+  justify-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: #526556;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.text-button:hover {
+  background: transparent;
+  color: #243e36;
+}
+
+.shelf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 20px 0;
+}
+
+.shelf-toolbar input[type='search'] {
+  max-width: 480px;
+}
+
+.shelf-toolbar .checkbox {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.empty-shelf,
+.empty-discussion {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.shelf-symbol {
+  display: block;
+  color: #7d9368;
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.bring-material-form,
+.create-circle-form {
+  margin: 20px 0;
+}
+
+.bring-material-form .goal-fields,
+.create-circle-form .goal-fields {
+  margin-bottom: 16px;
+}
+
+.bring-material-form > label,
+.study-controls > label,
+.compose-panel label {
+  margin-top: 16px;
+}
+
+.bring-material-form .actions {
+  margin-top: 20px;
+}
+
+.text-import {
+  align-items: center;
+  margin: 20px 0 8px;
+}
+
+.text-import > label {
+  margin: 0;
+}
+
+.file-label {
+  font-size: 12px;
+  color: #526556;
+}
+
+.file-label input {
+  display: block;
+  max-width: 240px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+}
+
+.study-layout,
+.discussion-layout,
+.ai-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.discussion-layout {
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
+.reading-panel,
+.study-controls,
+.compose-panel,
+.account-panel {
+  min-width: 0;
+}
+
+.reading-toolbar {
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #dde2d8;
+}
+
+.material-text {
+  max-width: 76ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+
+.reading-limit {
+  border-top: 1px solid #dde2d8;
+  padding-top: 16px;
+  margin-top: 24px;
+}
+
+.link-only-state {
+  padding: 28px 0;
+}
+
+.study-controls {
+  position: sticky;
+  top: 16px;
+}
+
+.study-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 20px 0;
+}
+
+.study-stages button {
+  padding: 8px 4px;
+  background: transparent;
+  border-color: #d1dec9;
+  color: #526556;
+  font-weight: 500;
+}
+
+.study-stages button.active {
+  background: #e4eddb;
+  color: #265641;
+  font-weight: 700;
+}
+
+.study-help-link {
+  display: inline-block;
+  margin: 20px 0 12px;
+  font-size: 14px;
+}
+
+.study-controls .actions button {
+  width: 100%;
+}
+
+.private-work-list {
+  margin-top: 24px;
+  text-align: left;
+  display: grid;
+  gap: 12px;
+}
+
+.private-work-list button {
+  text-align: left;
+}
+
+.feedback {
+  margin: 16px 0 0;
+  padding: 12px;
+  background: #eef2e8;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #265641;
+}
+
+.workspace-notice .notice {
+  margin: 16px 0 0;
+}
+
+.pending-contributions {
+  border: 1px solid #d2b99c;
+  border-radius: 12px;
+  background: #fff7e8;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.pending-item {
+  align-items: flex-start;
+  border-top: 1px solid #e4d8c5;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.pending-item > div,
+.pending-item > p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pending-item button {
+  flex-shrink: 0;
+}
+
+.chatgpt-button {
+  background: #24312c;
+  border-color: #24312c;
+}
+
+.account-panel > h3,
+.ai-layout .tag + h3 {
+  margin-top: 16px;
+}
+
+.account-panel > button,
+.account-panel > a {
+  margin-bottom: 16px;
+}
+
+.account-limit {
+  border-top: 1px solid #dde2d8;
+  padding-top: 16px;
+  margin-top: 20px;
+}
+
+.account-limit p {
+  margin: 8px 0 0;
+}
+
+.prompt-preview {
+  margin: 20px 0;
+}
+
+.prompt-preview textarea {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .study-layout,
+  .discussion-layout,
+  .ai-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .study-controls {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .student-workspace .sidebar {
+    gap: 8px;
+  }
+  .student-workspace .sidebar nav a span {
+    display: none;
+  }
+  .secondary-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+  .secondary-navigation a {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .workspace-status,
+  .workspace-heading,
+  .section-heading,
+  .shelf-toolbar,
+  .pending-item,
+  .text-import {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .workspace-status {
+    flex-direction: row;
+  }
+  .workspace-status button {
+    font-size: 12px;
+    padding: 8px;
+    flex-shrink: 0;
+  }
+  .workspace-status .save-status {
+    font-size: 11px;
+  }
+  .material-grid,
+  .circle-directory {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .material-card {
+    width: 100%;
+  }
+  .file-label input {
+    max-width: 100%;
+  }
+  .empty-shelf,
+  .empty-discussion {
+    padding: 28px 16px;
+  }
+}
