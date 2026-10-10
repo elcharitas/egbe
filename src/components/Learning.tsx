@@ -69,9 +69,9 @@ export function Learning({ learner }: { learner: Learner }) {
     setStepFeedback(
       saved
         ? completing
-          ? 'Step explored and saved. Continue when you are ready.'
+          ? 'Step explored. Check the account-save status above.'
           : 'Step reopened. Your notes are still here.'
-        : 'Progress changed in this page. Check the device-save notice.',
+        : 'Progress changed in this page. Check the account-save notice.',
     );
     requestAnimationFrame(() => practiceHeading.current?.focus());
   }
@@ -249,7 +249,7 @@ export function Learning({ learner }: { learner: Learner }) {
                 ))}
               </ol>
               <p className="small muted">
-                Notes stay private on this device. You choose what to share.
+                Notes stay private in your account. You choose what to share.
               </p>
             </section>
             <section className="card practice" aria-label="Practice step">

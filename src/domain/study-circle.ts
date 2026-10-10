@@ -8,6 +8,7 @@ export const createCircleSchema = z.object({
   id: z.uuid(),
   title: z.string().trim().min(1).max(80),
   description: z.string().trim().max(300),
+  visibility: z.enum(['public', 'private']).default('public'),
 });
 export const materialInputSchema = z.object({ id: z.uuid() });
 
@@ -43,7 +44,7 @@ export const shareMaterialSchema = z
     text: z.string().trim().max(12000),
     permissionToShare: z.literal(true, {
       error:
-        'Confirm that you have permission to share this material publicly.',
+        'Confirm that you have permission to share this material with the circle.',
     }),
   })
   .refine((material) => Boolean(material.sourceUrl || material.text), {
@@ -56,6 +57,7 @@ export interface StudyCircle {
   id: string;
   title: string;
   description: string;
+  visibility: 'public' | 'private';
   memberCount: number;
   materialCount: number;
   joined: boolean;
@@ -83,6 +85,7 @@ export const studyCircleSchema = z.object({
   id: z.uuid(),
   title: z.string().min(1).max(80),
   description: z.string().max(300),
+  visibility: z.enum(['public', 'private']).default('public'),
   memberCount: z.number().int().nonnegative(),
   materialCount: z.number().int().nonnegative(),
   joined: z.boolean(),

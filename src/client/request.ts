@@ -11,7 +11,13 @@ export async function requestFromWorker<Result>(
     if (controller.signal.aborted) {
       throw new Error(
         'The connection was interrupted or took too long. ' +
-          'Your private work and waiting contributions are kept. Try again when connected.',
+          'Unsaved work remains only in this page. Keep it open and retry when connected.',
+      );
+    }
+    if (error instanceof TypeError) {
+      throw new Error(
+        'The connection failed. Unsaved work remains only in this page. ' +
+          'Keep it open and retry when connected.',
       );
     }
     throw error;

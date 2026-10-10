@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import {
   chooseCircle,
   loadMaterial,
-  removeOfflineCopy,
-  saveMaterialOffline,
+  removeAccountCopy,
+  saveMaterialToAccount,
   type CircleState,
 } from '../client/circle-store';
 import { updateLearner } from '../client/learner-store';
@@ -77,9 +77,9 @@ export function MaterialReader({
     setFeedback(
       saved
         ? next
-          ? 'Step explored and saved. Take the next one at your pace.'
+          ? 'Step explored. Check the account-save status above.'
           : 'You explored all three steps. Your notes are kept.'
-        : 'Your work is in this page. Check the device-save notice.',
+        : 'Your work is in this page. Check the account-save notice.',
     );
     requestAnimationFrame(() => heading.current?.focus());
   }
@@ -154,20 +154,29 @@ export function MaterialReader({
             <span className="tag">Student-provided · unverified</span>
             <div className="actions">
               {material && (
-                <button className="secondary" onClick={saveMaterialOffline}>
+                <button
+                  className="secondary"
+                  disabled={!online || circle.busy}
+                  onClick={() => {
+                    void saveMaterialToAccount();
+                  }}
+                >
                   {saved
                     ? 'Update saved copy'
                     : material.text
-                      ? 'Save text on this device'
-                      : 'Save link details'}
+                      ? 'Save text to my account'
+                      : 'Save link details to my account'}
                 </button>
               )}
               {saved && (
                 <button
                   className="text-button"
-                  onClick={() => removeOfflineCopy(id)}
+                  disabled={!online || circle.busy}
+                  onClick={() => {
+                    void removeAccountCopy(id);
+                  }}
                 >
-                  Remove local copy
+                  Remove account copy
                 </button>
               )}
             </div>
@@ -191,12 +200,12 @@ export function MaterialReader({
               <p className="muted">
                 {material
                   ? 'This material is a source link. Open it online; saving its details does not download the article or PDF.'
-                  : 'Reconnect to open this material, or use a copy you explicitly saved on this device.'}
+                  : 'Reconnect to open this material or your saved account copy.'}
               </p>
             </div>
           )}
           <p className="small muted reading-limit">
-            Saved copies belong to this device. Removing a public material
+            Saved copies belong to your account. Removing a circle material
             cannot recall copies already saved by other students.
           </p>
           <WorkspaceNotice circle={circle} online={online} />
@@ -275,7 +284,7 @@ export function MaterialReader({
             }}
           />
           <p className="small muted">
-            Saved here, never posted automatically. No grades or streaks.
+            Private to your account, never posted automatically.
           </p>
           <label htmlFor="study-question">Question for my circle</label>
           <textarea

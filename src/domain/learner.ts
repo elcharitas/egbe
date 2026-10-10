@@ -90,8 +90,9 @@ export const learnerSchema = z.object({
       id: z.uuid().nullable(),
       title: z.string().max(80),
       description: z.string().max(300),
+      visibility: z.enum(['public', 'private']).default('private'),
     })
-    .default({ id: null, title: '', description: '' }),
+    .default({ id: null, title: '', description: '', visibility: 'private' }),
 });
 
 export type Learner = z.infer<typeof learnerSchema>;
@@ -137,7 +138,12 @@ export function emptyLearner(): Learner {
     materialOutbox: [],
     savedMaterials: [],
     materialWork: {},
-    circleDraft: { id: null, title: '', description: '' },
+    circleDraft: {
+      id: null,
+      title: '',
+      description: '',
+      visibility: 'private',
+    },
   };
 }
 

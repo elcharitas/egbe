@@ -12,6 +12,8 @@ import {
 } from '../domain/study-circle';
 import {
   createCircle,
+  createCircleInvite,
+  joinPrivateCircle,
   listCircles,
   openCircle,
   readCircle,
@@ -26,9 +28,11 @@ import {
 import {
   commitLearner,
   currentLearner,
-  deviceSaveStatus,
+  accountSaveStatus,
   removeWaitingCheckIn,
   removeWaitingMaterial,
+  retryAccountSave,
+  updateCircleDirectory,
   updateLearner,
 } from './learner-store';
 import { requestFromWorker as circleRequest } from './request';
@@ -60,6 +64,7 @@ const initial: CircleState = {
 };
 let state = initial;
 let materialRead = 0;
+let circleRead = 0;
 const subscribers = new Set<() => void>();
 
 function publish(change: Partial<CircleState>) {
@@ -68,11 +73,17 @@ function publish(change: Partial<CircleState>) {
   for (const notify of subscribers) notify();
 }
 
+export function clearCircleWork() {
+  materialRead++;
+  circleRead++;
+  publish(initial);
+}
+
 function failureMessage(error: unknown) {
   if (error instanceof TypeError) {
     return (
-      'The connection failed. Your private work and waiting contributions ' +
-      'are kept. Refresh & sync when connected.'
+      'The connection failed. Unsaved work remains only in this page. ' +
+      'Keep it open and retry when connected.'
     );
   }
   return error instanceof Error
@@ -80,7 +91,7 @@ function failureMessage(error: unknown) {
     : 'The circle could not be reached.';
 }
 
-function rememberCircle(result: CircleSnapshot, circles: StudyCircle[]) {
+async function rememberCircle(result: CircleSnapshot, circles: StudyCircle[]) {
   const learner = currentLearner();
   const waiting = learner.outbox.length + learner.materialOutbox.length;
   if (
@@ -89,23 +100,21 @@ function rememberCircle(result: CircleSnapshot, circles: StudyCircle[]) {
     waiting
   ) {
     throw new Error(
-      'Your circle cookie has changed. Waiting contributions were not shared. ' +
-        'Copy and cancel them before joining with a new demo name.',
+      'Your account changed. Waiting contributions were not shared. ' +
+        'Sign in to the original account before retrying.',
     );
   }
-  const saved = updateLearner((current) => ({
-    ...current,
-    participant: result.participant,
-    circles: [
+  updateCircleDirectory(
+    [
       result.circle,
       ...circles.filter((item) => item.id !== result.circle.id),
     ].slice(0, 30),
-    shelf: {
+    {
       circle: result.circle,
       materials: result.materials,
       fetchedAt: Date.now(),
     },
-  }));
+  );
   publish({
     circle: result.circle,
     materials: result.materials,
@@ -113,7 +122,7 @@ function rememberCircle(result: CircleSnapshot, circles: StudyCircle[]) {
     alias: result.alias,
     loaded: true,
   });
-  return saved;
+  return retryAccountSave();
 }
 
 async function flushContributions() {
@@ -124,10 +133,10 @@ async function flushContributions() {
     await flushOutbox<MaterialSummary, PendingMaterial>(
       {
         read: () => currentLearner().materialOutbox,
-        acknowledge: (id, material) => {
-          if (!removeWaitingMaterial(id)) {
+        acknowledge: async (id, material) => {
+          if (!(await removeWaitingMaterial(id))) {
             throw new Error(
-              'The server received your material, but this device could not ' +
+              'The circle received your material, but your account could not ' +
                 'save its confirmation. The waiting copy is kept for a safe retry.',
             );
           }
@@ -148,10 +157,10 @@ async function flushContributions() {
     await flushOutbox<CirclePost>(
       {
         read: () => currentLearner().outbox,
-        acknowledge: (id, post) => {
-          if (!removeWaitingCheckIn(id)) {
+        acknowledge: async (id, post) => {
+          if (!(await removeWaitingCheckIn(id))) {
             throw new Error(
-              'The server received your check-in, but this device could not ' +
+              'The circle received your check-in, but your account could not ' +
                 'save its confirmation. The waiting copy is kept for a safe retry.',
             );
           }
@@ -174,11 +183,12 @@ async function flushContributions() {
 
 export async function syncCircle(join = false) {
   if (state.busy || !navigator.onLine) return false;
-  if (join && deviceSaveStatus() !== 'saved') {
-    publish({ error: 'Retry the device save before joining or sharing.' });
+  if (join && !(await retryAccountSave())) {
+    publish({ error: 'Retry the account save before joining or sharing.' });
     return false;
   }
   const circleId = currentLearner().activeCircleId;
+  const request = ++circleRead;
   publish({ busy: true, error: '', feedback: '' });
   try {
     const result = await circleRequest((signal) =>
@@ -187,12 +197,60 @@ export async function syncCircle(join = false) {
         : readCircle({ data: { circleId }, signal }),
     );
     const circles = await circleRequest((signal) => listCircles({ signal }));
-    const saved = rememberCircle(result, circles);
-    if (saved && result.participant && deviceSaveStatus() === 'saved') {
+    if (request !== circleRead) return false;
+    const saved = await rememberCircle(result, circles);
+    if (saved && result.participant && accountSaveStatus() === 'saved') {
       await flushContributions();
     }
     if (!state.feedback)
       publish({ feedback: 'Circle refreshed. No automatic polling.' });
+    return true;
+  } catch (error) {
+    if (request === circleRead) publish({ error: failureMessage(error) });
+    return false;
+  } finally {
+    if (request === circleRead) publish({ busy: false });
+  }
+}
+
+export async function makeCircleInvitation(circleId: string) {
+  if (state.busy || !navigator.onLine) return null;
+  publish({ busy: true, error: '' });
+  try {
+    const { token } = await circleRequest((signal) =>
+      createCircleInvite({ data: { circleId }, signal }),
+    );
+    return `${location.origin}/#invite=${token}`;
+  } catch (error) {
+    publish({ error: failureMessage(error) });
+    return null;
+  } finally {
+    publish({ busy: false });
+  }
+}
+
+export async function acceptCircleInvitation(token: string) {
+  if (state.busy || !navigator.onLine || !(await retryAccountSave()))
+    return false;
+  publish({ busy: true, error: '' });
+  try {
+    const result = await circleRequest((signal) =>
+      joinPrivateCircle({ data: { token }, signal }),
+    );
+    if (
+      !(await commitLearner((learner) => ({
+        ...learner,
+        activeCircleId: result.circle.id,
+        selectedMaterialId: null,
+      })))
+    ) {
+      throw new Error(
+        'Membership was added. Retry account save before continuing.',
+      );
+    }
+    const circles = await circleRequest((signal) => listCircles({ signal }));
+    await rememberCircle(result, circles);
+    publish({ feedback: 'You joined this private circle.' });
     return true;
   } catch (error) {
     publish({ error: failureMessage(error) });
@@ -204,6 +262,10 @@ export async function syncCircle(join = false) {
 
 export function chooseCircle(circleId: string) {
   if (state.busy) return;
+  if (circleId === currentLearner().activeCircleId) {
+    if (!state.loaded) void syncCircle();
+    return;
+  }
   materialRead += 1;
   updateLearner((learner) => ({
     ...learner,
@@ -226,6 +288,7 @@ export function chooseCircle(circleId: string) {
     error: '',
     feedback: '',
   });
+  void syncCircle();
 }
 
 export async function createStudyCircle() {
@@ -238,17 +301,17 @@ export async function createStudyCircle() {
     return false;
   }
   if (!learner.participant) {
-    publish({ error: 'Join a circle with a demo name before creating one.' });
+    publish({ error: 'Sign in before creating a circle.' });
     return false;
   }
   if (
-    !commitLearner((current) => ({
+    !(await commitLearner((current) => ({
       ...current,
       circleDraft: { ...current.circleDraft, id },
-    }))
+    })))
   ) {
     publish({
-      error: 'Save the circle draft on this device before creating it.',
+      error: 'Save the circle draft to your account before creating it.',
     });
     return false;
   }
@@ -257,11 +320,16 @@ export async function createStudyCircle() {
     const result = await circleRequest((signal) =>
       createCircle({ data: parsed.data, signal }),
     );
-    const saved = commitLearner((current) => ({
+    const saved = await commitLearner((current) => ({
       ...current,
       activeCircleId: result.circle.id,
       selectedMaterialId: null,
-      circleDraft: { id: null, title: '', description: '' },
+      circleDraft: {
+        id: null,
+        title: '',
+        description: '',
+        visibility: 'private',
+      },
       circles: [
         result.circle,
         ...current.circles.filter((item) => item.id !== result.circle.id),
@@ -275,8 +343,21 @@ export async function createStudyCircle() {
     if (!saved)
       throw new Error(
         'The circle was created, but its confirmation could not be saved. ' +
-          'Keep this page open and retry device save; the draft retains its retry ID.',
+          'Keep this page open and retry account save; the draft retains its retry ID.',
       );
+    updateCircleDirectory(
+      [
+        result.circle,
+        ...currentLearner().circles.filter(
+          (item) => item.id !== result.circle.id,
+        ),
+      ].slice(0, 30),
+      {
+        circle: result.circle,
+        materials: result.materials,
+        fetchedAt: Date.now(),
+      },
+    );
     publish({
       circle: result.circle,
       materials: result.materials,
@@ -295,7 +376,7 @@ export async function createStudyCircle() {
   }
 }
 
-export function queueMaterial() {
+export async function queueMaterial() {
   const learner = currentLearner();
   if (learner.materialDraftCircleId !== learner.activeCircleId) {
     publish({
@@ -324,27 +405,29 @@ export function queueMaterial() {
     });
     return false;
   }
-  const saved = commitLearner((current) => ({
+  publish({ busy: true, error: '' });
+  const saved = await commitLearner((current) => ({
     ...current,
     materialDraft: { ...emptyMaterialDraft },
     materialOutbox: [...current.materialOutbox, parsed.data],
   }));
+  publish({ busy: false });
   if (!saved) {
     publish({
       error:
-        'The material was not safely saved. Your draft is kept; retry device save.',
+        'The material was not safely saved. Your draft is kept; retry account save.',
     });
     return false;
   }
   publish({
     error: '',
-    feedback: 'Material saved on this device, waiting to share.',
+    feedback: 'Material saved to your account, waiting to share.',
   });
   if (navigator.onLine) void syncCircle();
   return true;
 }
 
-export function queueCheckIn() {
+export async function queueCheckIn() {
   const learner = currentLearner();
   if (learner.checkInCircleId !== learner.activeCircleId) {
     publish({
@@ -374,33 +457,41 @@ export function queueCheckIn() {
     publish({ error: 'Write a check-in between 1 and 600 characters.' });
     return;
   }
-  const saved = commitLearner((current) => ({
+  publish({ busy: true, error: '' });
+  const saved = await commitLearner((current) => ({
     ...current,
     checkInDraft: '',
     outbox: [...current.outbox, parsed.data],
   }));
+  publish({ busy: false });
   publish({
     error: saved
       ? ''
-      : 'Device save failed. Your draft is kept; retry device save.',
-    feedback: saved ? 'Check-in saved on this device, waiting to share.' : '',
+      : 'Account save failed. Your draft is kept; retry account save.',
+    feedback: saved ? 'Check-in saved to your account, waiting to share.' : '',
   });
   if (saved && navigator.onLine) void syncCircle();
 }
 
-export function cancelContribution(id: string, kind: 'material' | 'check-in') {
+export async function cancelContribution(
+  id: string,
+  kind: 'material' | 'check-in',
+) {
   if (state.busy) return;
-  const saved =
-    kind === 'material' ? removeWaitingMaterial(id) : removeWaitingCheckIn(id);
+  publish({ busy: true, error: '' });
+  const saved = await (kind === 'material'
+    ? removeWaitingMaterial(id)
+    : removeWaitingCheckIn(id));
+  publish({ busy: false });
   publish(
     saved
       ? {
           error: '',
-          feedback: 'Waiting contribution cancelled on this device.',
+          feedback: 'Waiting contribution cancelled in your account.',
         }
       : {
           error:
-            'Cancellation was not saved. Its retry ID is kept. Retry device save, then cancel again before reloading.',
+            'Cancellation is not confirmed. Its retry ID is kept. Retry account save before reloading.',
         },
   );
 }
@@ -423,31 +514,13 @@ export async function deleteContribution(
       publish({ posts: state.posts.filter((post) => post.id !== id) });
     }
     publish({
-      feedback: 'Your contribution was removed from the public circle.',
+      feedback: 'Your contribution was removed from the circle.',
     });
   } catch (error) {
     publish({ error: failureMessage(error) });
   } finally {
     publish({ busy: false });
   }
-}
-
-export function reopenCircleSession() {
-  const learner = currentLearner();
-  if (learner.outbox.length || learner.materialOutbox.length) {
-    publish({
-      error:
-        'Copy and cancel waiting contributions before reopening a changed session.',
-    });
-    return;
-  }
-  if (!commitLearner((current) => ({ ...current, participant: null }))) {
-    publish({
-      error: 'The session change was not saved. Retry device save first.',
-    });
-    return;
-  }
-  void syncCircle(true);
 }
 
 export async function loadMaterial(id: string) {
@@ -476,7 +549,7 @@ export async function loadMaterial(id: string) {
     if (!navigator.onLine) {
       if (!saved)
         throw new Error(
-          'This material is not saved for offline reading. Your private notes are still here.',
+          'Reconnect to open this material. Unsaved work remains only in this page.',
         );
       return;
     }
@@ -491,7 +564,7 @@ export async function loadMaterial(id: string) {
   }
 }
 
-export function saveMaterialOffline() {
+export async function saveMaterialToAccount() {
   if (!state.material) return;
   const material = state.material;
   const learner = currentLearner();
@@ -501,11 +574,11 @@ export function saveMaterialOffline() {
   ) {
     publish({
       error:
-        'Twenty materials are saved. Remove a local copy before saving another.',
+        'Twenty materials are saved. Remove an account copy before saving another.',
     });
     return;
   }
-  const saved = commitLearner((current) => ({
+  const saved = await commitLearner((current) => ({
     ...current,
     savedMaterials: [
       material,
@@ -516,28 +589,29 @@ export function saveMaterialOffline() {
     saved
       ? {
           feedback: material.text
-            ? 'Material text saved on this device for offline reading.'
+            ? 'Material text saved in your account.'
             : 'Link details saved. The source itself still needs internet.',
           error: '',
         }
       : {
           error:
-            'The offline copy was not saved. Keep this page open and retry device save.',
+            'The account copy was not saved. Keep this page open and retry account save.',
         },
   );
 }
 
-export function removeOfflineCopy(id: string) {
-  const saved = commitLearner((learner) => ({
+export async function removeAccountCopy(id: string) {
+  const saved = await commitLearner((learner) => ({
     ...learner,
     savedMaterials: learner.savedMaterials.filter((item) => item.id !== id),
   }));
   publish(
     saved
       ? {
-          feedback: 'Local material copy removed. Your private notes are kept.',
+          feedback:
+            'Account material copy removed. Your private notes are kept.',
         }
-      : { error: 'Local removal was not saved. Retry device save.' },
+      : { error: 'Account removal was not saved. Retry account save.' },
   );
 }
 
@@ -554,7 +628,10 @@ export function useCircle(ready: boolean, online: boolean, circleId: string) {
   useEffect(() => {
     const reconnected = online && !wasOnline.current;
     wasOnline.current = online;
-    if (!ready) return;
+    if (!ready) {
+      clearCircleWork();
+      return;
+    }
     if (online) {
       const learner = currentLearner();
       if (
@@ -586,5 +663,5 @@ export function useCircle(ready: boolean, online: boolean, circleId: string) {
       });
     }
   }, [ready, online, circleId]);
-  return circle;
+  return ready ? circle : initial;
 }

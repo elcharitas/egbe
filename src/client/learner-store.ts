@@ -1,145 +1,177 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import {
+  createAccountSync,
+  type AccountSaveStatus,
+} from '../domain/account-sync';
 import { emptyLearner, learnerSchema, type Learner } from '../domain/learner';
+import { readWorkspace, saveWorkspace } from '../server/workspace.functions';
+import { requestFromWorker } from './request';
 
-const storageKey = 'egbe.learner.v1';
-type SaveStatus = 'saved' | 'unsaved' | 'damaged' | 'unreadable' | 'conflict';
 interface Snapshot {
   learner: Learner;
+  accountId: string | null;
   ready: boolean;
-  status: SaveStatus;
+  status: AccountSaveStatus | 'loading' | 'error';
+  error: string;
+  committing: boolean;
 }
-
 const initial: Snapshot = {
   learner: emptyLearner(),
+  accountId: null,
   ready: false,
-  status: 'saved',
+  status: 'loading',
+  error: '',
+  committing: false,
 };
 let snapshot = initial;
-let initialized = false;
-let lastSaved: Learner | undefined;
-let recoveryStoredData: string | null = null;
+let directory: Pick<Learner, 'circles' | 'shelf'> = {
+  circles: [],
+  shelf: null,
+};
+let sync: ReturnType<typeof createAccountSync<Learner>> | undefined;
+let opening: Promise<boolean> | undefined;
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let generation = 0;
 const subscribers = new Set<() => void>();
-class UnreadableProgress extends Error {}
 
 function publish(next: Snapshot) {
-  snapshot = next;
+  snapshot = { ...next, learner: { ...next.learner, ...directory } };
   for (const notify of subscribers) notify();
 }
 
-function readStoredLearner(): Learner {
-  const stored = localStorage.getItem(storageKey);
-  recoveryStoredData = stored;
-  if (stored === null) return emptyLearner();
-  try {
-    return learnerSchema.parse(JSON.parse(stored));
-  } catch {
-    throw new UnreadableProgress('Stored learner data could not be read.');
-  }
+async function openWorkspace(accountId: string) {
+  if (opening) return opening;
+  const request = generation;
+  publish({ ...snapshot, status: 'loading', error: '' });
+  opening = (async () => {
+    try {
+      const result = await requestFromWorker((signal) =>
+        readWorkspace({ signal }),
+      );
+      if (request !== generation) return false;
+      const learner = learnerSchema.parse(result.learner);
+      sync = createAccountSync(
+        learner,
+        result.revision,
+        (mutation) =>
+          requestFromWorker((signal) =>
+            saveWorkspace({
+              data: {
+                learner: mutation.value,
+                revision: mutation.revision,
+                mutationId: mutation.mutationId,
+              },
+              signal,
+            }),
+          ),
+        (next) => {
+          if (request !== generation) return;
+          publish({
+            learner: next.value,
+            accountId,
+            ready: true,
+            status: next.status,
+            error: next.error,
+            committing: next.committing,
+          });
+        },
+        () => crypto.randomUUID(),
+      );
+      publish({
+        learner,
+        accountId,
+        ready: true,
+        status: 'saved',
+        error: '',
+        committing: false,
+      });
+      return true;
+    } catch (error) {
+      if (request === generation) {
+        publish({
+          ...snapshot,
+          status: 'error',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Account work could not be opened.',
+        });
+      }
+      return false;
+    } finally {
+      if (request === generation) opening = undefined;
+    }
+  })();
+  return opening;
 }
 
-function openStoredProgress() {
-  try {
-    lastSaved = readStoredLearner();
-    publish({ learner: lastSaved, ready: true, status: 'saved' });
-  } catch (error) {
-    publish({
-      ...snapshot,
-      ready: error instanceof UnreadableProgress,
-      status: error instanceof UnreadableProgress ? 'damaged' : 'unreadable',
-    });
-  }
+export function clearAccountWork() {
+  generation++;
+  clearTimeout(saveTimer);
+  opening = undefined;
+  sync = undefined;
+  directory = { circles: [], shelf: null };
+  publish(initial);
 }
 
-function initialize() {
-  if (initialized) return;
-  initialized = true;
-  openStoredProgress();
-  window.addEventListener('storage', (event) => {
-    if (event.key !== storageKey || snapshot.status !== 'saved') return;
-    openStoredProgress();
-  });
+export function updateCircleDirectory(
+  circles: Learner['circles'],
+  shelf: Learner['shelf'],
+) {
+  directory = { circles, shelf };
+  publish(snapshot);
 }
 
 export function currentLearner() {
   return snapshot.learner;
 }
 
-export function deviceSaveStatus() {
+export function accountSaveStatus() {
   return snapshot.status;
 }
 
-function persist(learner: Learner, failedSave = learner) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(learner));
-    lastSaved = learner;
-    publish({ learner, ready: true, status: 'saved' });
-    return true;
-  } catch {
-    publish({ learner: failedSave, ready: true, status: 'unsaved' });
-    return false;
-  }
-}
-
-function changeLearner(
-  change: (learner: Learner) => Learner,
-  keepInPageOnFailure: boolean,
-) {
-  if (!snapshot.ready) return false;
-  if (!keepInPageOnFailure && snapshot.status !== 'saved') return false;
-  let learner = snapshot.learner;
-  if (snapshot.status === 'saved') {
-    try {
-      learner = readStoredLearner();
-      lastSaved = learner;
-    } catch (error) {
-      const next = keepInPageOnFailure
-        ? learnerSchema.parse(change(learner))
-        : learner;
-      publish({
-        learner: next,
-        ready: true,
-        status: error instanceof UnreadableProgress ? 'damaged' : 'unsaved',
-      });
-      return false;
-    }
-  }
-  const next = learnerSchema.parse(change(learner));
-  if (snapshot.status !== 'saved') {
-    publish({ ...snapshot, learner: next });
-    return false;
-  }
-  return persist(next, keepInPageOnFailure ? next : learner);
+export function hasUnconfirmedAccountWork() {
+  return snapshot.ready && snapshot.status !== 'saved';
 }
 
 export function updateLearner(change: (learner: Learner) => Learner) {
-  return changeLearner(change, true);
+  if (!sync) return false;
+  const applied = sync.update((learner) =>
+    learnerSchema.parse({
+      ...change({ ...learner, ...directory }),
+      circles: [],
+      shelf: null,
+    }),
+  );
+  if (applied && navigator.onLine && snapshot.status !== 'conflict') {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      void sync?.flush();
+    }, 600);
+  }
+  return applied;
 }
 
-// Public actions keep their draft or retry ID until the write is durable.
-export function commitLearner(change: (learner: Learner) => Learner) {
-  return changeLearner(change, false);
+export async function commitLearner(change: (learner: Learner) => Learner) {
+  clearTimeout(saveTimer);
+  return (
+    sync?.commit((learner) =>
+      learnerSchema.parse({
+        ...change({ ...learner, ...directory }),
+        circles: [],
+        shelf: null,
+      }),
+    ) ?? false
+  );
 }
 
-export function retryDeviceSave() {
-  if (!snapshot.ready) {
-    // An initial access failure is not evidence that the storage key is empty.
-    openStoredProgress();
-    return snapshot.status === 'saved';
-  }
-  if (snapshot.status !== 'unsaved') return false;
-  try {
-    const stored = readStoredLearner();
-    if (JSON.stringify(stored) !== JSON.stringify(lastSaved)) {
-      publish({ ...snapshot, status: 'conflict' });
-      return false;
-    }
-    return persist(snapshot.learner);
-  } catch (error) {
-    if (error instanceof UnreadableProgress) {
-      publish({ ...snapshot, status: 'damaged' });
-    }
-    return false;
-  }
+export async function retryAccountSave() {
+  clearTimeout(saveTimer);
+  return sync
+    ? sync.flush()
+    : snapshot.accountId
+      ? openWorkspace(snapshot.accountId)
+      : false;
 }
 
 export function removeWaitingCheckIn(id: string) {
@@ -157,23 +189,18 @@ export function removeWaitingMaterial(id: string) {
 }
 
 export function downloadRecovery() {
-  const recovery = {
-    currentLearning: snapshot.learner,
-    storedData: recoveryStoredData,
-    saveStatus: snapshot.status,
-  };
-  const blob = new Blob([JSON.stringify(recovery, null, 2)], {
+  const blob = new Blob([JSON.stringify(snapshot.learner, null, 2)], {
     type: 'application/json',
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'egbe-device-recovery.json';
+  link.download = 'egbe-work-export.json';
   link.click();
   URL.revokeObjectURL(url);
 }
 
-export function useLearner() {
+export function useLearner(accountId: string | null) {
   const state = useSyncExternalStore(
     (notify) => {
       subscribers.add(notify);
@@ -182,6 +209,29 @@ export function useLearner() {
     () => snapshot,
     () => initial,
   );
-  useEffect(initialize, []);
-  return state;
+  useEffect(() => {
+    clearAccountWork();
+    if (accountId) {
+      publish({ ...initial, accountId });
+      void openWorkspace(accountId);
+    }
+  }, [accountId]);
+  useEffect(() => {
+    const reconnect = () => {
+      if (accountId) void retryAccountSave();
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (accountId && snapshot.ready && snapshot.status !== 'saved') {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('online', reconnect);
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      window.removeEventListener('online', reconnect);
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
+  }, [accountId]);
+  return state.accountId === accountId ? state : initial;
 }

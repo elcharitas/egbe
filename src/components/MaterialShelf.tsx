@@ -117,9 +117,9 @@ export function MaterialShelf({
       {bringing && (
         <form
           className="card bring-material-form"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            if (queueMaterial()) {
+            if (await queueMaterial()) {
               setBringing(false);
               requestAnimationFrame(() => shelfHeading.current?.focus());
             }
@@ -143,8 +143,12 @@ export function MaterialShelf({
             </div>
           )}
           <p className="small muted">
-            Share only public links or text you have permission to share. This
-            is a public demo, not a private classroom.
+            Share only links or text you have permission to share. This material
+            will be visible to{' '}
+            {circle.circle?.visibility === 'private'
+              ? 'members of this private circle'
+              : 'any signed-in learner'}
+            .
           </p>
           <div className="goal-fields">
             <div>
@@ -255,7 +259,7 @@ export function MaterialShelf({
                 }));
               }}
             />
-            I have permission to share this material publicly.
+            I have permission to share this material with this circle.
           </label>
           <div className="actions">
             <button type="submit" disabled={otherDraft}>
@@ -286,7 +290,7 @@ export function MaterialShelf({
             checked={savedOnly}
             onChange={(event) => setSavedOnly(event.target.checked)}
           />
-          Saved on this device
+          Saved to my account
         </label>
       </div>
       {materials.length === 0 && (
@@ -321,7 +325,7 @@ export function MaterialShelf({
                 {waiting && (
                   <span className="tag waiting">Waiting to share</span>
                 )}
-                {saved && <span className="tag">Saved here</span>}
+                {saved && <span className="tag">Saved to account</span>}
               </div>
               <h3>{material.title}</h3>
               <p className="small">{material.attribution}</p>
@@ -357,7 +361,7 @@ export function MaterialShelf({
                     onClick={() => {
                       if (
                         window.confirm(
-                          'Remove this material from the public shelf? Other devices may keep saved copies.',
+                          'Remove this material from the circle? Other members may keep account copies.',
                         )
                       ) {
                         void deleteContribution(material.id, 'material');

@@ -69,20 +69,25 @@ describe('durable check-in outbox', () => {
     expect(storage.read()).toEqual([]);
   });
 
-  it('keeps a retry ID if saving its acknowledgement fails', async () => {
-    const storage = memoryQueue([first]);
+  it('keeps retry IDs when asynchronous acknowledgement fails', async () => {
+    const storage = memoryQueue([first, second]);
+    const sent: string[] = [];
     await expect(
       flushOutbox(
         {
           read: storage.read,
-          acknowledge: () => {
-            throw new Error('storage full');
+          acknowledge: async () => {
+            await Promise.resolve();
+            throw new Error('account save failed');
           },
         },
-        async () => {},
+        async (entry) => {
+          sent.push(entry.id);
+        },
       ),
-    ).rejects.toThrow('storage full');
-    expect(storage.read()).toEqual([first]);
+    ).rejects.toThrow('account save failed');
+    expect(storage.read()).toEqual([first, second]);
+    expect(sent).toEqual([first.id]);
   });
 
   it('does not send an entry removed before its turn', async () => {

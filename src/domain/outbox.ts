@@ -3,7 +3,7 @@ export type { PendingCheckIn } from './check-in';
 
 interface OutboxStorage<Result, Entry> {
   read: () => Entry[];
-  acknowledge: (id: string, result: Result) => void;
+  acknowledge: (id: string, result: Result) => void | Promise<void>;
 }
 
 // Acknowledge one ID against current storage, never replace a stale batch:
@@ -19,6 +19,6 @@ export async function flushOutbox<
   for (const entry of batch) {
     if (!storage.read().some((pending) => pending.id === entry.id)) continue;
     const result = await send(entry);
-    storage.acknowledge(entry.id, result);
+    await storage.acknowledge(entry.id, result);
   }
 }

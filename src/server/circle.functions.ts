@@ -15,12 +15,11 @@ import {
   alias,
   circleRequestSecurity,
   currentOwner,
-  openOwner,
-  optionalOwner,
   participant,
 } from './circle-session.server';
 
 const ownerSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const inviteSchema = z.object({ token: z.string().regex(/^[0-9a-f]{64}$/) });
 const removeSchema = z.object({ id: z.uuid() });
 const postRowSchema = z.object({
   id: z.uuid(),
@@ -37,6 +36,7 @@ const circleRowSchema = z.object({
   owner: ownerSchema.nullable(),
   title: z.string().min(1).max(80),
   description: z.string().max(300),
+  visibility: z.enum(['public', 'private']),
   created_at: z.number().int(),
   member_count: z.number().int().nonnegative(),
   material_count: z.number().int().nonnegative(),
@@ -98,6 +98,7 @@ function toCircle(value: unknown, viewer: string | null): StudyCircle {
     id: row.id,
     title: row.title,
     description: row.description,
+    visibility: row.visibility,
     memberCount: row.member_count,
     materialCount: row.material_count,
     joined: row.joined === 1,
@@ -122,7 +123,7 @@ function toMaterial(value: unknown, viewer: string | null): MaterialSummary {
 }
 
 const circleSelect = `
-  SELECT c.id, c.owner, c.title, c.description, c.created_at,
+  SELECT c.id, c.owner, c.title, c.description, c.visibility, c.created_at,
     (SELECT COUNT(*) FROM circle_members WHERE circle_id = c.id)
       AS member_count,
     (SELECT COUNT(*) FROM study_materials
@@ -131,17 +132,41 @@ const circleSelect = `
            WHERE circle_id = c.id AND owner = ?) AS joined
   FROM study_circles c`;
 
-async function circleById(id: string, viewer: string | null) {
-  const row = await env.DB.prepare(`${circleSelect} WHERE c.id = ?`)
-    .bind(viewer, id)
+async function circleById(id: string, viewer: string) {
+  const row = await env.DB.prepare(
+    `${circleSelect} WHERE c.id = ? AND
+     (c.visibility = 'public' OR EXISTS (
+       SELECT 1 FROM circle_members
+       WHERE circle_id = c.id AND owner = ?))`,
+  )
+    .bind(viewer, id, viewer)
     .first();
   if (!row) throw new Error('Circle not found.');
   return toCircle(row, viewer);
 }
 
+async function joinedCircle(id: string, viewer: string) {
+  const circle = await circleById(id, viewer);
+  if (!circle.joined) throw new Error('Join this circle before sharing.');
+}
+
+function hex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    '',
+  );
+}
+
+async function inviteHash(token: string) {
+  return hex(
+    new Uint8Array(
+      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)),
+    ),
+  );
+}
+
 async function snapshot(
   circleId: string,
-  viewer: string | null,
+  viewer: string,
 ): Promise<CircleSnapshot> {
   const circle = await circleById(circleId, viewer);
   const [posts, materials] = await Promise.all([
@@ -164,8 +189,8 @@ async function snapshot(
       .all(),
   ]);
   return {
-    participant: viewer === null ? null : participant(viewer),
-    alias: viewer === null ? null : alias(viewer),
+    participant: participant(viewer),
+    alias: alias(viewer),
     circle,
     posts: posts.results.map((row) => toPost(row, viewer)),
     materials: materials.results.map((row) => toMaterial(row, viewer)),
@@ -175,11 +200,14 @@ async function snapshot(
 export const listCircles = createServerFn({ method: 'GET' }).handler(
   async (): Promise<StudyCircle[]> => {
     circleRequestSecurity();
-    const viewer = await optionalOwner();
+    const viewer = await currentOwner();
     const result = await env.DB.prepare(
-      `${circleSelect} ORDER BY c.created_at DESC, c.id DESC LIMIT 30`,
+      `${circleSelect} WHERE c.visibility = 'public' OR EXISTS (
+        SELECT 1 FROM circle_members
+        WHERE circle_id = c.id AND owner = ?)
+       ORDER BY c.created_at DESC, c.id DESC LIMIT 30`,
     )
-      .bind(viewer)
+      .bind(viewer, viewer)
       .all();
     return result.results.map((row) => toCircle(row, viewer));
   },
@@ -189,21 +217,24 @@ export const readCircle = createServerFn({ method: 'GET' })
   .validator((input: unknown) => circleInputSchema.parse(input))
   .handler(async ({ data }): Promise<CircleSnapshot> => {
     circleRequestSecurity();
-    return snapshot(data.circleId, await optionalOwner());
+    return snapshot(data.circleId, await currentOwner());
   });
 
 export const openCircle = createServerFn({ method: 'POST' })
   .validator((input: unknown) => circleInputSchema.parse(input))
   .handler(async ({ data }): Promise<CircleSnapshot> => {
-    const secure = circleRequestSecurity();
-    // Check existence before issuing a new identity for an unknown circle.
-    await circleById(data.circleId, null);
-    const owner = await openOwner(secure);
+    circleRequestSecurity();
+    const owner = await currentOwner();
+    // Private circles must be joined through an invite, never by guessing an ID.
+    await circleById(data.circleId, owner);
     await env.DB.prepare(
       `INSERT OR IGNORE INTO circle_members (circle_id, owner, joined_at)
-       SELECT id, ?, ? FROM study_circles WHERE id = ?`,
+       SELECT id, ?, ? FROM study_circles
+       WHERE id = ? AND visibility = 'public'
+         AND (SELECT COUNT(*) FROM circle_members
+              WHERE circle_id = ?) < 100`,
     )
-      .bind(owner, Date.now(), data.circleId)
+      .bind(owner, Date.now(), data.circleId, data.circleId)
       .run();
     return snapshot(data.circleId, owner);
   });
@@ -215,8 +246,9 @@ export const createCircle = createServerFn({ method: 'POST' })
     const owner = await currentOwner();
     const now = Date.now();
     await env.DB.prepare(
-      `INSERT INTO study_circles (id, owner, title, description, created_at)
-       SELECT ?, ?, ?, ?, ?
+      `INSERT INTO study_circles
+         (id, owner, title, description, visibility, created_at)
+       SELECT ?, ?, ?, ?, ?, ?
        WHERE (SELECT COUNT(*) FROM study_circles
               WHERE owner = ? AND created_at > ?) < 3
          AND (SELECT COUNT(*) FROM study_circles) < 100
@@ -227,13 +259,15 @@ export const createCircle = createServerFn({ method: 'POST' })
         owner,
         data.title,
         data.description,
+        data.visibility,
         now,
         owner,
         now - 60 * 60 * 1000,
       )
       .run();
     const stored = await env.DB.prepare(
-      `SELECT owner, title, description FROM study_circles WHERE id = ?`,
+      `SELECT owner, title, description, visibility
+       FROM study_circles WHERE id = ?`,
     )
       .bind(data.id)
       .first();
@@ -245,12 +279,14 @@ export const createCircle = createServerFn({ method: 'POST' })
         owner: ownerSchema.nullable(),
         title: z.string(),
         description: z.string(),
+        visibility: z.enum(['public', 'private']),
       })
       .parse(stored);
     if (
       existing.owner !== owner ||
       existing.title !== data.title ||
-      existing.description !== data.description
+      existing.description !== data.description ||
+      existing.visibility !== data.visibility
     ) {
       throw new Error('This circle ID was already used for another circle.');
     }
@@ -263,17 +299,69 @@ export const createCircle = createServerFn({ method: 'POST' })
     return snapshot(data.id, owner);
   });
 
+export const createCircleInvite = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => circleInputSchema.parse(input))
+  .handler(async ({ data }): Promise<{ token: string }> => {
+    circleRequestSecurity();
+    const owner = await currentOwner();
+    const token = hex(crypto.getRandomValues(new Uint8Array(32)));
+    const result = await env.DB.prepare(
+      `UPDATE study_circles SET invite_hash = ?
+       WHERE id = ? AND owner = ? AND visibility = 'private'
+         AND EXISTS (SELECT 1 FROM circle_members
+                     WHERE circle_id = study_circles.id AND owner = ?)`,
+    )
+      .bind(await inviteHash(token), data.circleId, owner, owner)
+      .run();
+    if (result.meta.changes !== 1) throw new Error('Circle not found.');
+    return { token };
+  });
+
+export const joinPrivateCircle = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => inviteSchema.parse(input))
+  .handler(async ({ data }): Promise<CircleSnapshot> => {
+    circleRequestSecurity();
+    const owner = await currentOwner();
+    const hash = await inviteHash(data.token);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO circle_members (circle_id, owner, joined_at)
+       SELECT c.id, ?, ? FROM study_circles c
+       WHERE c.visibility = 'private' AND c.invite_hash = ?
+         AND ((SELECT COUNT(*) FROM circle_members
+               WHERE circle_id = c.id) < 100
+              OR EXISTS (SELECT 1 FROM circle_members
+                         WHERE circle_id = c.id AND owner = ?))`,
+    )
+      .bind(owner, Date.now(), hash, owner)
+      .run();
+    // Do not disclose whether a token expired, was invalid, or hit a cap.
+    const joined = await env.DB.prepare(
+      `SELECT c.id FROM study_circles c
+       JOIN circle_members m ON m.circle_id = c.id AND m.owner = ?
+       WHERE c.visibility = 'private' AND c.invite_hash = ?`,
+    )
+      .bind(owner, hash)
+      .first<{ id: string }>();
+    if (!joined) throw new Error('Invite unavailable.');
+    return snapshot(joined.id, owner);
+  });
+
 export const readMaterial = createServerFn({ method: 'GET' })
   .validator((input: unknown) => materialInputSchema.parse(input))
   .handler(async ({ data }): Promise<StudyMaterial> => {
     circleRequestSecurity();
-    const viewer = await optionalOwner();
+    const viewer = await currentOwner();
     const stored = await env.DB.prepare(
-      `SELECT id, circle_id, owner, title, source_url, attribution, text,
-              created_at, removed_at
-       FROM study_materials WHERE id = ? AND removed_at IS NULL`,
+      `SELECT m.id, m.circle_id, m.owner, m.title, m.source_url,
+              m.attribution, m.text, m.created_at, m.removed_at
+       FROM study_materials m
+       JOIN study_circles c ON c.id = m.circle_id
+       WHERE m.id = ? AND m.removed_at IS NULL
+         AND (c.visibility = 'public' OR EXISTS (
+           SELECT 1 FROM circle_members
+           WHERE circle_id = c.id AND owner = ?))`,
     )
-      .bind(data.id)
+      .bind(data.id, viewer)
       .first();
     if (!stored) throw new Error('Material not found or removed.');
     const row = storedMaterialSchema.parse(stored);
@@ -296,6 +384,7 @@ export const shareMaterial = createServerFn({ method: 'POST' })
         'Circle session changed. This material belongs to another session.',
       );
     }
+    await joinedCircle(data.circleId, owner);
     const now = Date.now();
     await env.DB.prepare(
       `INSERT INTO study_materials
@@ -368,16 +457,22 @@ export const removeMaterial = createServerFn({ method: 'POST' })
       `UPDATE study_materials
        SET title = '[removed]', attribution = '[removed]',
            source_url = NULL, text = '', removed_at = ?
-       WHERE id = ? AND owner = ? AND removed_at IS NULL`,
+       WHERE id = ? AND owner = ? AND removed_at IS NULL
+         AND EXISTS (SELECT 1 FROM circle_members
+                     WHERE circle_id = study_materials.circle_id
+                       AND owner = ?)`,
     )
-      .bind(Date.now(), data.id, owner)
+      .bind(Date.now(), data.id, owner, owner)
       .run();
     if (result.meta.changes !== 1) {
       const removed = await env.DB.prepare(
         `SELECT id FROM study_materials
-         WHERE id = ? AND owner = ? AND removed_at IS NOT NULL`,
+         WHERE id = ? AND owner = ? AND removed_at IS NOT NULL
+           AND EXISTS (SELECT 1 FROM circle_members
+                       WHERE circle_id = study_materials.circle_id
+                         AND owner = ?)`,
       )
-        .bind(data.id, owner)
+        .bind(data.id, owner, owner)
         .first();
       if (!removed)
         throw new Error('Material not found or not yours to remove.');
@@ -397,6 +492,7 @@ export const shareCheckIn = createServerFn({ method: 'POST' })
       );
     }
 
+    await joinedCircle(data.circleId, owner);
     const now = Date.now();
     await env.DB.prepare(
       `INSERT INTO check_ins
@@ -480,16 +576,22 @@ export const removeCheckIn = createServerFn({ method: 'POST' })
     const owner = await currentOwner();
     const result = await env.DB.prepare(
       `UPDATE check_ins SET message = '[removed]', removed_at = ?
-       WHERE id = ? AND owner = ? AND removed_at IS NULL`,
+       WHERE id = ? AND owner = ? AND removed_at IS NULL
+         AND EXISTS (SELECT 1 FROM circle_members
+                     WHERE circle_id = check_ins.circle_id
+                       AND owner = ?)`,
     )
-      .bind(Date.now(), data.id, owner)
+      .bind(Date.now(), data.id, owner, owner)
       .run();
     if (result.meta.changes !== 1) {
       const removed = await env.DB.prepare(
         `SELECT id FROM check_ins
-         WHERE id = ? AND owner = ? AND removed_at IS NOT NULL`,
+         WHERE id = ? AND owner = ? AND removed_at IS NOT NULL
+           AND EXISTS (SELECT 1 FROM circle_members
+                       WHERE circle_id = check_ins.circle_id
+                         AND owner = ?)`,
       )
-        .bind(data.id, owner)
+        .bind(data.id, owner, owner)
         .first();
       if (!removed)
         throw new Error('Check-in not found or not yours to remove.');

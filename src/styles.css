@@ -5,8 +5,8 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #243e36;
-  background: #f6f5ef;
+  color: #1f2328;
+  background: #ffffff;
   font-synthesis: none;
   line-height: 1.5;
 }
@@ -38,7 +38,7 @@ button,
   background: #265641;
   color: white;
   min-height: 44px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 14px;
   font-weight: 650;
   cursor: pointer;
@@ -77,11 +77,12 @@ input:not([type='radio']):not([type='checkbox']),
 select,
 textarea {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #aebbb0;
-  border-radius: 8px;
-  background: #fffefa;
-  color: #243e36;
+  padding: 8px 12px;
+  min-height: 44px;
+  border: 1px solid #d1d9e0;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1f2328;
   font-size: 16px;
 }
 
@@ -1039,17 +1040,17 @@ footer {
 .study-layout,
 .discussion-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 296px;
+  gap: 16px;
   align-items: start;
 }
 
 .discussion-layout {
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  grid-template-columns: 296px minmax(0, 1fr);
 }
 
 .study-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 38%);
+  grid-template-columns: minmax(0, 1fr) 296px;
 }
 
 .reading-panel,
@@ -1167,7 +1168,7 @@ footer {
   flex-shrink: 0;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 767px) {
   .study-layout,
   .discussion-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -1231,8 +1232,12 @@ footer {
 }
 
 .circle-workspace .topbar {
-  padding: 12px 24px;
+  padding: 12px 16px;
   flex-wrap: wrap;
+  max-width: 1280px;
+  margin: 0 auto;
+  background: #f6f8fa;
+  border-color: #d1d9e0;
 }
 
 .circle-workspace .circle-picker {
@@ -1254,6 +1259,9 @@ footer {
 
 .circle-workspace main {
   width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px;
 }
 
 .circle-workspace .workspace-heading {
@@ -1308,7 +1316,7 @@ footer {
 }
 
 .circle-workspace .card {
-  padding: 20px;
+  padding: 16px;
 }
 
 .workspace-footer {
@@ -1361,5 +1369,175 @@ footer {
   }
   .circle-workspace .card {
     padding: 16px;
+  }
+}
+
+.circle-workspace
+  :is(
+    button,
+    .button,
+    input,
+    select,
+    textarea,
+    .card,
+    .notice,
+    .tag,
+    .feedback,
+    .pending-contributions,
+    .practice-prompt,
+    .resource-card,
+    .direction-options label,
+    nav a
+  ) {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.circle-workspace :is(input, select, textarea, .card) {
+  background: #ffffff;
+  border-color: #d1d9e0;
+  color: #1f2328;
+}
+
+.circle-workspace :is(.muted, .small.muted, .save-status, .eyebrow) {
+  color: #59636e;
+}
+
+.circle-workspace h1 {
+  font-size: 28px;
+  letter-spacing: -0.5px;
+}
+
+.circle-workspace h2 {
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.circle-workspace .wordmark {
+  color: #1f2328;
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+
+.circle-workspace .secondary {
+  background: #f6f8fa;
+  color: #1f2328;
+  border-color: #d1d9e0;
+}
+
+.circle-workspace .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f6f8fa;
+  border-color: #d1d9e0;
+  color: #59636e;
+}
+
+.circle-workspace
+  :is(.circle-tabs, .workspace-heading, .workspace-status, .section-heading) {
+  margin-bottom: 16px;
+}
+
+.circle-workspace .circle-tabs {
+  border-bottom: 1px solid #d1d9e0;
+  padding-bottom: 8px;
+}
+
+.circle-workspace nav a {
+  gap: 8px;
+  color: #1f2328;
+}
+
+.circle-workspace nav a.active {
+  background: #eef1f4;
+  color: #1f2328;
+}
+
+.circle-workspace svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.workspace-content {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.account-actions > span {
+  min-width: 0;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+
+.workspace-heading h1 {
+  overflow-wrap: anywhere;
+}
+
+.account-gate {
+  max-width: 640px;
+  margin: 32px auto;
+}
+
+.account-gate > p,
+.account-gate > button {
+  margin-bottom: 16px;
+}
+
+.invite-panel {
+  border: 1px solid #d1d9e0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.invite-panel input {
+  margin-top: 8px;
+}
+
+.invite-panel label {
+  margin-top: 16px;
+}
+
+.material-grid,
+.circle-directory {
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shared-post,
+.pending-item {
+  padding: 12px 0;
+  border-color: #d1d9e0;
+}
+
+@media (min-width: 1400px) {
+  .material-grid,
+  .circle-directory {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .material-grid,
+  .circle-directory {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .circle-workspace main {
+    padding-top: 16px;
   }
 }

@@ -1,8 +1,4 @@
-import {
-  cancelContribution,
-  reopenCircleSession,
-  type CircleState,
-} from '../client/circle-store';
+import { cancelContribution, type CircleState } from '../client/circle-store';
 import type { Learner } from '../domain/learner';
 
 export function WorkspaceNotice({
@@ -23,22 +19,10 @@ export function WorkspaceNotice({
         <div className="notice error" role="alert">
           <p>{circle.error}</p>
           <p className="small">
-            Private work and waiting contributions stay on this device.
+            Account-confirmed work is kept in D1. Unsaved edits remain only in
+            this page; keep it open and{' '}
+            {online ? 'retry' : 'reconnect and retry'} before reloading.
           </p>
-          <details>
-            <summary>Lost your demo cookie?</summary>
-            <p className="small">
-              Copy and cancel waiting contributions before reopening a changed
-              session. This cannot recover ownership of earlier public posts.
-            </p>
-            <button
-              className="secondary"
-              disabled={!online || circle.busy}
-              onClick={reopenCircleSession}
-            >
-              Join with a new demo name
-            </button>
-          </details>
         </div>
       )}
     </div>
@@ -61,8 +45,8 @@ export function ContributionQueue({
     >
       <h3>Waiting for confirmation ({count})</h3>
       <p className="small muted">
-        A lost reply can mean the server already has it. Cancelling stops local
-        retries; remove any confirmed contribution after reconnecting.
+        A lost reply can mean the circle already has it. Cancelling stops
+        account retries; remove any confirmed contribution after reconnecting.
       </p>
       {learner.materialOutbox.map((material) => (
         <article className="pending-item" key={material.id}>

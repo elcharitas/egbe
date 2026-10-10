@@ -9,7 +9,6 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
   non-interactive migration confirmation.
 - `npm run dev` runs Vite in the Workers runtime on port 5173.
 - `npm run build` then `npm run preview` previews the production Worker on 3000.
-  Separate origins keep the production service worker out of development.
   Ports are strict; parallel verification may pass `-- --port <free-port>`.
 - Run `npm run format:check`, `npm run lint`, `npm run typecheck`,
   `npm test`, and `npm run build` before a completed milestone commit.
@@ -18,30 +17,35 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
 
 - `src/routes` holds TanStack Start routes; `src/components` holds learner UI.
 - `src/domain` holds resource guidance, validation, and durable outbox rules.
-- `src/client` owns browser persistence and offline/sync lifecycle.
+- `src/client` owns in-page state and revision-checked account autosaves.
 - `src/server` holds server functions and D1 access. DB is the only binding.
-- Students bring links, excerpts, or small UTF-8 text files to public circles.
+- Students bring links, excerpts, or small UTF-8 files to study circles.
   Never fetch external lesson URLs on the server or imply links are downloaded.
-  Text copies are saved offline explicitly. Private work remains browser-local.
+  Goals, notes, drafts, saved copies, and retry queues are private account data
+  in D1. Never use localStorage, sessionStorage, or IndexedDB for learner work.
 - Keep draft circle/material context and fixed retry IDs through failures.
   Publish materials before check-ins that reference them. Removed items retain
   scrubbed retry markers. Existing preset-path work must remain accessible.
-- The app has no external identity or AI integration. Public demo membership
-  uses its browser cookie. Keep private study work out of shared discussions
-  unless the learner explicitly chooses to prepare a check-in.
+- Google OIDC is required. Use GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI, and
+  server-only GOOGLE_CLIENT_SECRET from ignored local configuration or Worker
+  secrets, never source. No Google tokens are retained; sessions are hashed in
+  D1 with an opaque HttpOnly cookie. There is no AI integration.
+- Every circle read and write checks the account and circle visibility.
+  Private circles require membership, including material detail reads.
+  Invitations use rotating hashed tokens; links carry tokens in fragments.
 - Runtime types are module imports to avoid mixing Workers and DOM globals.
   Generate binding-only types. Vite configuration is JavaScript, validated by
   lint/build; application TypeScript is strict with library checking enabled.
 - `migrations` holds local D1 SQL. The all-zero database ID is a placeholder,
-  not a provisioned resource. No credentials are needed for local workflows.
-- `public/sw.js` caches the production shell, never server-function responses
-  or external lesson content. Development is not an offline-ready build.
-- Goals and practice stay on this browser. The public demo circle uses an
-  opaque HttpOnly cookie; do not add personal profiling or fake peer activity.
-- Use one learning tab at a time. Device save failures must retain in-page
-  work, and cancellations/acknowledgements must retain retry IDs until durable.
-- Shared posts persist publicly until removed. Removal scrubs text but retains
-  a minimal retry marker. Do not remove that protection or bypass the D1 cap.
+  not a provisioned resource. Live Google sign-in needs a registered web client.
+- No service worker or persistent offline lesson cache is installed. On a
+  failed save, retain in-page work and warn that unsaved edits cannot survive
+  reload. Never display account confirmation before a successful D1 response.
+- Workspace revisions prevent silent overwrites between devices or tabs.
+  Cancellations and acknowledgements retain retry IDs until confirmed by D1.
+- Shared posts persist in their circle until removed. Removal scrubs text but
+  retains a minimal retry marker. Do not remove that protection or bypass the
+  D1 cap.
 
 Keep domain rules and persistence in their existing sources of truth.
 Prefer coherent functions, explicit flow, and lines around 80 characters.
@@ -50,8 +54,10 @@ report failures honestly. Do not add speculative abstractions.
 
 Only genuinely complex utilities get focused automated tests. Do not commit
 journey, component-behavior, or simple-utility suites. Use temporary Playwright
-scripts to inspect the actual local Cloudflare app, including offline reloads,
-two-context circle interactions, keyboard use, and narrow layouts.
+scripts to inspect the actual local Cloudflare app, including failed saves,
+cross-device account persistence, private-circle access, keyboard use, and
+narrow layouts. Disclose test-seeded sessions; do not claim live Google success
+without exercising the registered provider flow.
 
 Obtain independent product, code/security, and real-condition reviews at major
 milestones. Fix blockers and important friction, rerun checks, and re-review.

@@ -1,7 +1,6 @@
 import {
   chooseCircle,
   createStudyCircle,
-  syncCircle,
   type CircleState,
 } from '../client/circle-store';
 import { updateLearner } from '../client/learner-store';
@@ -31,7 +30,11 @@ export function CircleDirectory({
       <div className="circle-directory">
         {learner.circles.map((item) => (
           <article className="card circle-directory-card" key={item.id}>
-            <span className="tag">Public demo circle</span>
+            <span className="tag">
+              {item.visibility === 'private'
+                ? 'Private circle'
+                : 'Public circle'}
+            </span>
             <h3>{item.title}</h3>
             <p>{item.description || 'Bring a material and a question.'}</p>
             <p className="small muted">
@@ -62,7 +65,6 @@ export function CircleDirectory({
         className="card create-circle-form"
         onSubmit={async (event) => {
           event.preventDefault();
-          if (!learner.participant && !(await syncCircle(true))) return;
           if (await createStudyCircle()) window.location.hash = 'materials';
         }}
       >
@@ -108,16 +110,30 @@ export function CircleDirectory({
             />
           </div>
         </div>
+        <label htmlFor="circle-visibility">Who can read this circle?</label>
+        <select
+          id="circle-visibility"
+          value={learner.circleDraft.visibility}
+          disabled={circle.busy}
+          onChange={(event) => {
+            const visibility =
+              event.target.value === 'public' ? 'public' : 'private';
+            updateLearner((current) => ({
+              ...current,
+              circleDraft: { ...current.circleDraft, id: null, visibility },
+            }));
+          }}
+        >
+          <option value="private">Private — invited members only</option>
+          <option value="public">Public — all signed-in learners</option>
+        </select>
         <p className="small muted">
-          All demo circles are public. Join a circle first to get a generated
-          demo name; no account or real name is required.
+          Private circles stay out of other learners’ directories. You can
+          invite classmates after creating one. Visibility cannot be changed
+          afterward.
         </p>
         <button disabled={!online || circle.busy}>
-          {circle.busy
-            ? 'Connecting…'
-            : learner.participant
-              ? 'Create circle'
-              : 'Join demo & create circle'}
+          {circle.busy ? 'Connecting…' : 'Create circle'}
         </button>
         <WorkspaceNotice circle={circle} online={online} />
       </form>

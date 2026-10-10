@@ -42,7 +42,7 @@ export function Discussion({
         <section className="card compose-panel">
           <h3>Your check-in</h3>
           <p className="small muted">
-            Demo name: {circle.alias ?? 'Join this circle to take part'}
+            Circle name: {circle.alias ?? 'Join this circle to take part'}
           </p>
           {otherDraft && (
             <div className="notice">
@@ -60,9 +60,9 @@ export function Discussion({
             </div>
           )}
           <form
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              queueCheckIn();
+              await queueCheckIn();
             }}
           >
             <label htmlFor="check-in-topic">About</label>
@@ -115,14 +115,21 @@ export function Discussion({
             />
             <p className="small muted">
               {learner.checkInDraft.length}/600 · Draft stays here until you
-              share. Offline submissions wait for connection.
+              share. Account saving needs a connection.
             </p>
             <p className="small muted">
-              Shared check-ins are public and remain until removed. Your private
-              study notes are not included.
+              Shared check-ins are visible to{' '}
+              {circle.circle?.visibility === 'private'
+                ? 'circle members'
+                : 'signed-in readers'}{' '}
+              until removed. Your private study notes are not included.
             </p>
-            <button disabled={!circle.circle?.joined || otherDraft}>
-              {online ? 'Share check-in' : 'Save check-in to share later'}
+            <button
+              disabled={
+                !online || circle.busy || !circle.circle?.joined || otherDraft
+              }
+            >
+              Share check-in
             </button>
           </form>
           <WorkspaceNotice circle={circle} online={online} />
@@ -150,7 +157,7 @@ export function Discussion({
               <p className="muted">
                 {online
                   ? 'There is no sample peer activity. A real check-in starts the conversation.'
-                  : 'Your queued check-ins are kept. Reconnect and refresh for public posts.'}
+                  : 'Reconnect and refresh for circle posts. Keep unsaved work in this page.'}
               </p>
             </div>
           )}
@@ -206,7 +213,7 @@ export function Discussion({
                   className="text-button"
                   disabled={!online || circle.busy}
                   onClick={() => {
-                    if (window.confirm('Remove this public check-in?'))
+                    if (window.confirm('Remove this circle check-in?'))
                       void deleteContribution(post.id, 'check-in');
                   }}
                 >
