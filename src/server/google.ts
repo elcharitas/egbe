@@ -107,7 +107,9 @@ async function boundedJSON(url: string, init?: RequestInit, limit = 65536) {
   const response = await fetch(url, {
     ...init,
     signal: AbortSignal.timeout(5000),
-    redirect: 'error',
+    // Workers supports manual redirect handling, not redirect: 'error'.
+    // A redirect is rejected by the response.ok check below.
+    redirect: 'manual',
     headers: {
       Accept: 'application/json',
       ...init?.headers,
