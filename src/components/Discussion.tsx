@@ -7,6 +7,7 @@ import {
 import { updateLearner } from '../client/learner-store';
 import type { Learner } from '../domain/learner';
 import { WorkspaceNotice } from './WorkspaceNotice';
+import { CustomSelect } from './CustomSelect';
 
 export function Discussion({
   learner,
@@ -20,12 +21,16 @@ export function Discussion({
   const otherDraft =
     Boolean(learner.checkInDraft.trim()) &&
     learner.checkInCircleId !== learner.activeCircleId;
-  const options = [
-    ...circle.materials,
-    ...learner.materialOutbox.filter(
-      (item) => item.circleId === learner.activeCircleId,
-    ),
-  ];
+  const options = Array.from(
+    new Map(
+      [
+        ...circle.materials,
+        ...learner.materialOutbox.filter(
+          (item) => item.circleId === learner.activeCircleId,
+        ),
+      ].map((material) => [material.id, material]),
+    ).values(),
+  );
   return (
     <>
       <div className="section-heading">
@@ -66,34 +71,35 @@ export function Discussion({
             }}
           >
             <label htmlFor="check-in-topic">About</label>
-            <select
+            <CustomSelect
               id="check-in-topic"
-              value={learner.checkInMaterialId ?? ''}
+              value={learner.checkInMaterialId ?? 'general'}
               disabled={otherDraft}
-              onChange={(event) => {
-                const materialId = event.target.value || null;
+              onValueChange={(value) => {
+                const materialId = value === 'general' ? null : value;
                 updateLearner((current) => ({
                   ...current,
                   checkInMaterialId: materialId,
                   checkInCircleId: current.activeCircleId,
                 }));
               }}
-            >
-              <option value="">General circle check-in</option>
-              {options.map((material) => (
-                <option key={material.id} value={material.id}>
-                  {material.title}
-                </option>
-              ))}
-              {learner.checkInMaterialId &&
-                !options.some(
-                  (item) => item.id === learner.checkInMaterialId,
-                ) && (
-                  <option value={learner.checkInMaterialId}>
-                    Material no longer available
-                  </option>
-                )}
-            </select>
+              options={[
+                { value: 'general', label: 'General circle check-in' },
+                ...options.map((material) => ({
+                  value: material.id,
+                  label: material.title,
+                })),
+                ...(learner.checkInMaterialId &&
+                !options.some((item) => item.id === learner.checkInMaterialId)
+                  ? [
+                      {
+                        value: learner.checkInMaterialId,
+                        label: 'Material no longer available',
+                      },
+                    ]
+                  : []),
+              ]}
+            />
             <label htmlFor="check-in-message">
               What did you learn, or where are you stuck?
             </label>

@@ -3,6 +3,7 @@ import { updateLearner } from '../client/learner-store';
 import { directions, resources, type Direction } from '../domain/catalog';
 import { parseGoal, type Learner } from '../domain/learner';
 import { ResourceCard } from './ResourceCard';
+import { SessionTimeSelect } from './SessionTimeSelect';
 
 export function Learning({ learner }: { learner: Learner }) {
   const [editingGoal, setEditingGoal] = useState(false);
@@ -145,11 +146,10 @@ export function Learning({ learner }: { learner: Learner }) {
               <label htmlFor="goal-minutes">
                 Time I can make for a session
               </label>
-              <select
+              <SessionTimeSelect
                 id="goal-minutes"
-                value={draft.minutes}
-                onChange={(event) => {
-                  const minutes = Number(event.target.value);
+                minutes={draft.minutes}
+                onValueChange={(minutes) => {
                   updateLearner((state) => ({
                     ...state,
                     goalDrafts: {
@@ -158,12 +158,7 @@ export function Learning({ learner }: { learner: Learner }) {
                     },
                   }));
                 }}
-              >
-                <option value={5}>About 5 minutes</option>
-                <option value={10}>About 10 minutes</option>
-                <option value={20}>About 20 minutes</option>
-                <option value={30}>About 30 minutes</option>
-              </select>
+              />
               <p className="small muted">
                 Split any step across sessions. Adjusting your goal keeps your
                 notes and completed steps.

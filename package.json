@@ -20,11 +20,13 @@
   },
   "dependencies": {
     "@primer/octicons-react": "^19.40.0",
+    "@radix-ui/react-select": "^2.4.1",
     "@tanstack/react-router": "1.170.41",
     "@tanstack/react-start": "1.168.60",
     "jose": "^6.2.12",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "tabbable": "^6.5.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

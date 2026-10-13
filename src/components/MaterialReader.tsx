@@ -15,6 +15,7 @@ import {
 } from '../domain/learner';
 import { WorkspaceNotice } from './WorkspaceNotice';
 import { StudyAssistant } from './StudyAssistant';
+import { SessionTimeSelect } from './SessionTimeSelect';
 
 const stageGuidance = {
   read: {
@@ -231,19 +232,13 @@ export function MaterialReader({
             }}
           />
           <label htmlFor="study-minutes">Time I can make today</label>
-          <select
+          <SessionTimeSelect
             id="study-minutes"
-            value={work.minutes}
-            onChange={(event) => {
-              const minutes = Number(event.target.value);
+            minutes={work.minutes}
+            onValueChange={(minutes) => {
               changeWork((current) => ({ ...current, minutes }));
             }}
-          >
-            <option value={5}>About 5 minutes</option>
-            <option value={10}>About 10 minutes</option>
-            <option value={20}>About 20 minutes</option>
-            <option value={30}>About 30 minutes</option>
-          </select>
+          />
           <div className="study-stages" aria-label="Study steps">
             {studyStages.map((stage) => (
               <button

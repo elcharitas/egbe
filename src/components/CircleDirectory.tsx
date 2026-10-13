@@ -6,6 +6,7 @@ import {
 import { updateLearner } from '../client/learner-store';
 import type { Learner } from '../domain/learner';
 import { WorkspaceNotice } from './WorkspaceNotice';
+import { CustomSelect } from './CustomSelect';
 
 export function CircleDirectory({
   learner,
@@ -111,22 +112,22 @@ export function CircleDirectory({
           </div>
         </div>
         <label htmlFor="circle-visibility">Who can read this circle?</label>
-        <select
+        <CustomSelect
           id="circle-visibility"
           value={learner.circleDraft.visibility}
           disabled={circle.busy}
-          onChange={(event) => {
-            const visibility =
-              event.target.value === 'public' ? 'public' : 'private';
+          onValueChange={(value) => {
+            const visibility = value === 'public' ? 'public' : 'private';
             updateLearner((current) => ({
               ...current,
               circleDraft: { ...current.circleDraft, id: null, visibility },
             }));
           }}
-        >
-          <option value="private">Private — invited members only</option>
-          <option value="public">Public — all signed-in learners</option>
-        </select>
+          options={[
+            { value: 'private', label: 'Private — invited members only' },
+            { value: 'public', label: 'Public — all signed-in learners' },
+          ]}
+        />
         <p className="small muted">
           Private circles stay out of other learners’ directories. You can
           invite classmates after creating one. Visibility cannot be changed

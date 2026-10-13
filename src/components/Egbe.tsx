@@ -27,6 +27,7 @@ import { MaterialReader } from './MaterialReader';
 import { MaterialShelf } from './MaterialShelf';
 import { Resources } from './Resources';
 import { ContributionQueue, WorkspaceNotice } from './WorkspaceNotice';
+import { CustomSelect } from './CustomSelect';
 
 type View =
   'circle' | 'materials' | 'study' | 'circles' | 'learning' | 'resources';
@@ -101,24 +102,25 @@ export function Egbe() {
               <label className="sr-only" htmlFor="active-circle">
                 Current circle
               </label>
-              <select
+              <CustomSelect
                 id="active-circle"
                 value={learner.activeCircleId}
                 disabled={!ready || circle.busy || committing}
-                onChange={(event) => chooseCircle(event.target.value)}
-              >
-                {!learner.circles.some(
-                  (item) => item.id === learner.activeCircleId,
-                ) && (
-                  <option value={learner.activeCircleId}>Study circle</option>
-                )}
-                {learner.circles.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                    {item.visibility === 'private' ? ' · Private' : ''}
-                  </option>
-                ))}
-              </select>
+                onValueChange={chooseCircle}
+                options={[
+                  ...(!learner.circles.some(
+                    (item) => item.id === learner.activeCircleId,
+                  )
+                    ? [{ value: learner.activeCircleId, label: 'Study circle' }]
+                    : []),
+                  ...learner.circles.map((item) => ({
+                    value: item.id,
+                    label:
+                      item.title +
+                      (item.visibility === 'private' ? ' · Private' : ''),
+                  })),
+                ]}
+              />
             </div>
             <a className="browse-circles" href="#circles">
               <PeopleIcon /> Browse circles
