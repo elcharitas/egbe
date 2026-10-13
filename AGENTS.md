@@ -5,6 +5,7 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
 - Use Node 24 LTS (`.node-version`), npm >=11, and package-lock.json.
 - `npm ci` installs dependencies.
 - `npm run cf-typegen` regenerates Workers binding types.
+  It reads the comment-only `.env.example`, not local credentials.
 - `npm run db:migrate` applies D1 migrations locally only. Use `CI=true` for
   non-interactive migration confirmation.
 - `npm run dev` runs Vite in the Workers runtime on port 5173.
@@ -29,7 +30,17 @@ Egbe is a low-data learning-circle proof of concept, not a production service.
 - Google OIDC is required. Use GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI, and
   server-only GOOGLE_CLIENT_SECRET from ignored local configuration or Worker
   secrets, never source. No Google tokens are retained; sessions are hashed in
-  D1 with an opaque HttpOnly cookie. There is no AI integration.
+  D1 with an opaque HttpOnly cookie.
+- Built-in study assistance uses the OpenAI Responses API from the Worker.
+  OPENAI_API_KEY is a server-only secret; OPENAI_MODEL defaults to
+  gpt-4.1-mini. Send only a learner-reviewed question and excerpt, never
+  private goals or notes automatically. No external lesson fetching or tools.
+  Keep provider responses private in D1, label AI output, and verify it
+  against the source. store:false does not promise zero provider retention.
+  Assistance history is private account work, like saved copies and notes:
+  material removal does not recall it. New calls always check current access.
+  Reserve fixed request IDs and enforce account/global caps before paid
+  calls. Never silently retry an uncertain provider request.
 - Every circle read and write checks the account and circle visibility.
   Private circles require membership, including material detail reads.
   Invitations use rotating hashed tokens; links carry tokens in fragments.

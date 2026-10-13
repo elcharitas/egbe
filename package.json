@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types --include-runtime false",
+    "cf-typegen": "wrangler types --include-runtime false --env-file .env.example",
     "db:migrate": "wrangler d1 migrations apply egbe-circle --local",
     "test": "vitest run --config vitest.config.js"
   },

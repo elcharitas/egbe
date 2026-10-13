@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { directions, type Direction } from './catalog';
 import { checkInSchema, directionSchema } from './check-in';
 import {
+  assistantExcerptLimit,
+  assistantQuestionLimit,
+} from './study-assistant';
+import {
   communityCircleId,
   materialSummarySchema,
   shareMaterialSchema,
@@ -29,7 +33,13 @@ const materialWorkSchema = z.object({
   minutes: z.number().int().min(5).max(60),
   notes: z.string().max(4000),
   stage: z.enum(studyStages).default('read'),
-  question: z.string().max(1000).default(''),
+  question: z.string().max(assistantQuestionLimit).default(''),
+  assistantExcerpt: z
+    .string()
+    .max(assistantExcerptLimit)
+    .nullable()
+    .default(null),
+  assistantRequestId: z.uuid().nullable().default(null),
   completed: z.array(z.enum(studyStages)).max(3),
 });
 
@@ -108,6 +118,8 @@ export function emptyMaterialWork(circleId = communityCircleId): MaterialWork {
     notes: '',
     stage: 'read',
     question: '',
+    assistantExcerpt: null,
+    assistantRequestId: null,
     completed: [],
   };
 }

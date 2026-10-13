@@ -369,6 +369,7 @@ export function Egbe() {
               )}
               {ready && view === 'study' && (
                 <MaterialReader
+                  accountId={auth.account.accountId}
                   learner={learner}
                   circle={circle}
                   online={online}

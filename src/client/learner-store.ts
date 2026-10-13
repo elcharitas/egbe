@@ -53,8 +53,13 @@ async function openWorkspace(accountId: string) {
       sync = createAccountSync(
         learner,
         result.revision,
-        (mutation) =>
-          requestFromWorker((signal) =>
+        (mutation) => {
+          if (request !== generation) {
+            return Promise.reject(
+              new Error('Your account changed. Original work was not sent.'),
+            );
+          }
+          return requestFromWorker((signal) =>
             saveWorkspace({
               data: {
                 learner: mutation.value,
@@ -63,7 +68,8 @@ async function openWorkspace(accountId: string) {
               },
               signal,
             }),
-          ),
+          );
+        },
         (next) => {
           if (request !== generation) return;
           publish({
@@ -154,15 +160,17 @@ export function updateLearner(change: (learner: Learner) => Learner) {
 
 export async function commitLearner(change: (learner: Learner) => Learner) {
   clearTimeout(saveTimer);
-  return (
-    sync?.commit((learner) =>
-      learnerSchema.parse({
-        ...change({ ...learner, ...directory }),
-        circles: [],
-        shelf: null,
-      }),
-    ) ?? false
+  const currentSync = sync;
+  const request = generation;
+  if (!currentSync) return false;
+  const saved = await currentSync.commit((learner) =>
+    learnerSchema.parse({
+      ...change({ ...learner, ...directory }),
+      circles: [],
+      shelf: null,
+    }),
   );
+  return saved && request === generation && currentSync === sync;
 }
 
 export async function retryAccountSave() {

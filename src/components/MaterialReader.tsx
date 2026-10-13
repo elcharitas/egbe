@@ -14,6 +14,7 @@ import {
   type MaterialWork,
 } from '../domain/learner';
 import { WorkspaceNotice } from './WorkspaceNotice';
+import { StudyAssistant } from './StudyAssistant';
 
 const stageGuidance = {
   read: {
@@ -34,10 +35,12 @@ const stageGuidance = {
 };
 
 export function MaterialReader({
+  accountId,
   learner,
   circle,
   online,
 }: {
+  accountId: string | null;
   learner: Learner;
   circle: CircleState;
   online: boolean;
@@ -146,6 +149,7 @@ export function MaterialReader({
         <div className="actions">
           <a href="#materials">← Material shelf</a>
           <a href="#study-notes">Jump to my notes</a>
+          <a href="#study-assistant">Ask the study assistant</a>
         </div>
       </div>
       <div className="study-layout">
@@ -286,21 +290,9 @@ export function MaterialReader({
           <p className="small muted">
             Private to your account, never posted automatically.
           </p>
-          <label htmlFor="study-question">Question for my circle</label>
-          <textarea
-            id="study-question"
-            rows={2}
-            maxLength={1000}
-            value={work.question}
-            placeholder="What would I like a peer to help me understand?"
-            onChange={(event) => {
-              const question = event.target.value;
-              changeWork((current) => ({ ...current, question }));
-            }}
-          />
           <p className="small muted">
-            This stays private. Preparing opens an editable check-in, not a
-            public post. Review the wording before sharing (up to 600
+            Your study question stays private. Preparing it for your circle
+            opens an editable check-in, not a public post (up to 600
             characters).
           </p>
           <div className="actions">
@@ -347,6 +339,15 @@ export function MaterialReader({
             Change your goal or revisit any step without losing notes.
           </p>
         </section>
+        <StudyAssistant
+          key={id}
+          accountId={accountId}
+          materialId={id}
+          material={material}
+          work={work}
+          online={online}
+          changeWork={changeWork}
+        />
       </div>
     </>
   );

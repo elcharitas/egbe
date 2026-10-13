@@ -17,6 +17,7 @@ import {
   currentOwner,
   participant,
 } from './circle-session.server';
+import { visibleMaterialRow } from './material-access.server';
 
 const ownerSchema = z.string().regex(/^[0-9a-f]{64}$/);
 const inviteSchema = z.object({ token: z.string().regex(/^[0-9a-f]{64}$/) });
@@ -351,20 +352,9 @@ export const readMaterial = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<StudyMaterial> => {
     circleRequestSecurity();
     const viewer = await currentOwner();
-    const stored = await env.DB.prepare(
-      `SELECT m.id, m.circle_id, m.owner, m.title, m.source_url,
-              m.attribution, m.text, m.created_at, m.removed_at
-       FROM study_materials m
-       JOIN study_circles c ON c.id = m.circle_id
-       WHERE m.id = ? AND m.removed_at IS NULL
-         AND (c.visibility = 'public' OR EXISTS (
-           SELECT 1 FROM circle_members
-           WHERE circle_id = c.id AND owner = ?))`,
-    )
-      .bind(data.id, viewer)
-      .first();
-    if (!stored) throw new Error('Material not found or removed.');
-    const row = storedMaterialSchema.parse(stored);
+    const row = storedMaterialSchema.parse(
+      await visibleMaterialRow(data.id, viewer),
+    );
     return {
       ...toMaterial(
         { ...row, text_length: Array.from(row.text).length },

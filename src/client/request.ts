@@ -1,9 +1,10 @@
 export async function requestFromWorker<Result>(
   request: (signal: AbortSignal) => Promise<Result>,
+  timeoutMs = 15000,
 ) {
   const controller = new AbortController();
   const interrupt = () => controller.abort();
-  const timeout = setTimeout(interrupt, 15000);
+  const timeout = setTimeout(interrupt, timeoutMs);
   window.addEventListener('offline', interrupt, { once: true });
   try {
     return await request(controller.signal);

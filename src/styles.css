@@ -1540,3 +1540,75 @@ footer {
     padding-top: 16px;
   }
 }
+
+.study-controls {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.study-assistant {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.study-assistant label {
+  margin-top: 16px;
+}
+
+.study-assistant .checkbox {
+  align-items: flex-start;
+}
+
+.assistant-prompts {
+  margin: 12px 0 16px;
+}
+
+.assistant-prompts button {
+  font-size: 12px;
+  padding: 8px;
+}
+
+.assistant-history {
+  margin-top: 24px;
+}
+
+.assistant-record {
+  padding: 12px 0;
+  border-top: 1px solid #d1d9e0;
+  overflow-wrap: anywhere;
+}
+
+.assistant-answer {
+  margin-top: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.assistant-data-details {
+  margin-top: 16px;
+}
+
+.assistant-data-details p {
+  margin-top: 12px;
+}
+
+@media (min-width: 1400px) {
+  .study-layout {
+    grid-template-columns: minmax(0, 1fr) 296px 380px;
+  }
+  .study-controls {
+    grid-row: 1;
+  }
+  .study-assistant {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .study-controls,
+  .study-assistant {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
